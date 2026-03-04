@@ -5,6 +5,7 @@ import '../models/device_info.dart';
 import '../models/device_status.dart';
 import '../config/device_registry.dart';
 import '../services/device_command_service.dart';
+import '../services/ping_service.dart';
 
 class DashboardState extends ChangeNotifier {
   final List<DeviceInfo> devices = DeviceRegistry.getKnownDevices();
