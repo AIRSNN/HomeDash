@@ -19,3 +19,8 @@ Bu dosya oturum sırasındaki önemli aşamaları, kararları ve tamamlanan adı
 - **Dry-Run Komut Önizleme:** Dialog içine "Test Komutu Hazırla" butonu entegre edildi. Buton yalnızca cihaz online iken görünür; tıklandığında `DeviceCommandService.generateDryRunPayload()` çağrılır, üretilen payload (`action`, `target`, `value`, `deviceIp`) dialog içinde monospace kutuda gösterilir. Hiçbir HTTP isteği yapılmaz.
 - **Eksik Import Giderildi:** `DeviceCommandService` sınıfı `device_table.dart` içinde kullanılıyor ancak import edilmemişti; `lib/services/device_command_service.dart` import satırı eklenerek derleme hatası temizlendi.
 - **Windows Build Başarılı:** `flutter build windows` çalıştırıldı, `homedash.exe` başarıyla üretildi (çıkış kodu 0). `flutter analyze` sıfır hata döndürdü (yalnızca `info`-seviyesi doc comment uyarıları).
+- **`/command` JSON Şema SOT Oluşturuldu:** `docs/COMMAND_SCHEMA_SOT.md` belgesi tüm payload alanlarını (`action`, `target`, `value`, `deviceIp`, `timestamp`), izin verilen değerleri, doğrulama kurallarını (R-01–R-06) ve 3 örnek payload'ı içerecek biçimde hazırlandı ve doğrulandı.
+- **Gerçek `sendCommand()` Uygulaması TAMAMLANMADI:** Schema-doğrulamalı HTTP POST implementasyonu bu oturumda başlatıldı ancak agent kesintisi nedeniyle tamamlanamadı. `device_command_service.dart` içindeki `sendCommand()` hâlâ placeholder durumundadır ve değiştirilmemiştir. Bu görev sonraki oturuma ertelendi.
+
+**Bu Oturumun Sonu — Kararlı Durum:**
+Proje `flutter build windows` ile başarıyla derlenmekte, dry-run komut önizlemesi çalışmakta, gerçek POST devre dışıdır. Sonraki adım: şema onayı alındıktan sonra `sendCommand()` implementasyonu.
