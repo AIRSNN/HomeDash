@@ -24,3 +24,25 @@ Bu dosya oturum sırasındaki önemli aşamaları, kararları ve tamamlanan adı
 
 **Bu Oturumun Sonu — Kararlı Durum:**
 Proje `flutter build windows` ile başarıyla derlenmekte, dry-run komut önizlemesi çalışmakta, gerçek POST devre dışıdır. Sonraki adım: şema onayı alındıktan sonra `sendCommand()` implementasyonu.
+## Session Update - Phase 4-b Completed (2026-03-05)
+- Implemented real `sendCommand()` in `lib/services/device_command_service.dart`.
+- Added schema validation for `action`, `target`, `deviceIp`, `value` (R-01..R-05).
+- Validation failure returns `false` and sends no request.
+- Valid requests use `HttpClient` POST to `http://<deviceIp>:8080/command`.
+- Payload includes: `action`, `target`, `value`, `deviceIp`, `timestamp`.
+- Timeout + try/catch added; non-2xx responses return failure.
+
+## Session Update - Phase 4-c Completed (2026-03-05)
+- Added `Gerçek Komut Gönder` button in Device Details dialog next to dry-run action.
+- Button calls `DeviceCommandService.sendCommand()` for selected device payload.
+- Result feedback is shown with SnackBar:
+  - Success: `Komut başarıyla gönderildi`
+  - Failure: `Komut gönderilemedi!`
+- Existing `Test Komutu Hazırla` dry-run flow was preserved.
+
+## Session Update - Graceful Shutdown / Clean Exit (2026-03-05)
+- Top control bar'a ayri bir `Cikis` butonu eklendi (`Icons.exit_to_app`, kirmizi outlined stil).
+- Buton, `DashboardState.gracefulShutdownAndExit()` metodunu cagiracak sekilde baglandi.
+- Kapatma sirasinda polling timer hemen iptal ediliyor, tarama durumlari kapatiliyor ve yeni taramalar bloklaniyor.
+- `DeviceCommandService` icindeki `HttpClient` baglantilari `close(force: true)` ile kapatilarak portlar serbest birakiliyor.
+- Son adimda uygulama `exit(0)` ile temiz sekilde sonlandiriliyor.

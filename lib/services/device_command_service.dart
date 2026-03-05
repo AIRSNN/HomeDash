@@ -1,17 +1,93 @@
-/// MADAM Projesi - Cihaz Kontrol Servisi
+﻿/// MADAM Projesi - Cihaz Kontrol Servisi
 import 'dart:io';
 import 'dart:convert';
 import '../config/network_constants.dart';
+import '../config/device_registry.dart';
 import '../models/device_status.dart';
 
 class DeviceCommandService {
   final HttpClient _client = HttpClient()..connectionTimeout = const Duration(seconds: 2);
 
+  void closeClient() {
+    _client.close(force: true);
+  }
+
   // TODO: HTTP POST ile cihazlara json komut atan uç nokta buraya kurulacak
   Future<bool> sendCommand(String ipAddress, Map<String, dynamic> commandJson) async {
-    // Placeholder logic
-    await Future.delayed(const Duration(milliseconds: 100));
-    return false; // Başarısızlık senaryosunu test etmek için şimdilik false
+    const validTargetsByAction = <String, Set<String>>{
+      'toggle': {'relay_1', 'relay_2'},
+      'open': {'relay_1', 'relay_2'},
+      'close': {'relay_1', 'relay_2'},
+      'read': {'sensor_data'},
+      'ping': {'system'},
+    };
+
+    try {
+      final action = commandJson['action'];
+      final target = commandJson['target'];
+      final deviceIp = commandJson['deviceIp'];
+      final value = commandJson.containsKey('value') ? commandJson['value'] : null;
+
+      // R-01, R-02
+      if (action is! String || target is! String) {
+        return false;
+      }
+      if (!validTargetsByAction.containsKey(action)) {
+        return false;
+      }
+      if (!validTargetsByAction[action]!.contains(target)) {
+        return false;
+      }
+
+      // R-03
+      if (deviceIp is! String) {
+        return false;
+      }
+      final knownIps = DeviceRegistry.getKnownDevices().map((d) => d.ip).toSet();
+      if (!knownIps.contains(deviceIp)) {
+        return false;
+      }
+      if (ipAddress != deviceIp) {
+        return false;
+      }
+
+      // R-04 + value constraints
+      if (action == 'read') {
+        if (value is! String || value.trim().isEmpty) {
+          return false;
+        }
+      } else if (action == 'toggle') {
+        if (value != null && value is! bool) {
+          return false;
+        }
+      } else if (action == 'open' || action == 'close') {
+        if (value != null && value is! bool) {
+          return false;
+        }
+      } else if (action == 'ping') {
+        if (value != null) {
+          return false;
+        }
+      }
+
+      final payload = <String, dynamic>{
+        'action': action,
+        'target': target,
+        'value': value,
+        'deviceIp': deviceIp,
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+
+      final uri = Uri.http('$deviceIp:${NetworkConstants.apiPort}', NetworkConstants.endpointCommand);
+      final request = await _client.postUrl(uri).timeout(const Duration(seconds: 3));
+      request.headers.contentType = ContentType.json;
+      request.write(jsonEncode(payload));
+
+      final response = await request.close().timeout(const Duration(seconds: 3));
+      return response.statusCode >= 200 && response.statusCode < 300;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Bu metod sadece Dry-Run testi içindir. Gerçek ağ isteği yapmaz.

@@ -1,0 +1,87 @@
+---
+description: HomeDash (MADAM) project guardrails, current phase, and safe workflow
+alwaysApply: true
+---
+
+# HomeDash (MADAM) project rule
+
+This workspace is the HomeDash (MADAM) smart home test project.
+
+## Project context
+- Platform: Flutter/Dart, Windows desktop target.
+- Network is fixed: 192.168.55.0/24.
+- Dashboard PC is fixed at 192.168.55.100.
+- Device pool is fixed at 192.168.55.20-29.
+- API/service port is fixed at 8080.
+- JSON communication is the standard message format.
+
+## Current stable state
+- Flutter Windows build is working.
+- TCP 8080 scan is working.
+- GET /status JSON read is working.
+- DeviceTable shows JSON summary.
+- Details dialog exists.
+- Dry-run command preview (Test Komutu Hazirla) is working.
+- COMMAND_SCHEMA_SOT.md is the source of truth for /command payload rules.
+
+## Current default phase
+- Current default next task is Faz 4-b.
+- Unless the user explicitly changes scope, the next code change should focus on:
+  - lib/services/device_command_service.dart
+  - specifically the sendCommand() method only.
+
+## Mandatory guardrails
+1. Do not modify any UI file unless the user explicitly asks.
+2. Do not change network constants, IP addresses, port 8080, or device roles.
+3. Do not add packages unless the user explicitly approves it.
+4. Do not refactor unrelated code.
+5. Make small, surgical edits.
+6. Prefer one-file changes whenever possible.
+7. Before making a risky change, first inspect and summarize.
+8. After meaningful code edits, run validation:
+   - flutter analyze
+   - if no build-breaking error: flutter build windows
+9. Do not bind real UI command actions before sendCommand() is implemented and verified.
+10. Do not send real device commands unless validation passes and the user explicitly wants real command behavior.
+
+## sendCommand() implementation rules
+When implementing sendCommand(), follow docs/COMMAND_SCHEMA_SOT.md exactly.
+
+Required validation before POST:
+- action must be one of: toggle, open, close, read, ping
+- target must be one of: relay_1, relay_2, sensor_data, system
+- action-target pair must be valid per schema
+- deviceIp must be allowed for MADAM registered devices
+- value must follow schema rules
+
+If validation fails:
+- do not send any request
+- return false or safe failure result consistent with the method signature
+
+If validation passes:
+- send HTTP POST to http://<deviceIp>:8080/command
+- use dart:io HttpClient
+- send JSON body with: action, target, value, deviceIp, timestamp
+- use timeout and try/catch
+- treat non-2xx response as failure
+
+## Read-first workflow for new chats
+At the start of a new chat or task, first read and use these files as context:
+- 00_MADAM_MASTER_CONTEXT.md
+- 01_MADAM_HARDWARE_AND_NETWORK_SOT.md
+- docs/COMMAND_SCHEMA_SOT.md
+- docs/WORK_TODO.md
+- lib/services/device_command_service.dart
+- lib/widgets/device_table.dart
+
+On the first pass:
+- summarize architecture
+- summarize current stable state
+- identify the exact next pending task
+- confirm the single next file to modify
+- do not edit code yet
+
+## Documentation discipline
+- Update docs only when the user explicitly asks for a checkpoint or documentation update.
+- Prefer clean commits after stable milestones.
+- If a change is incomplete, report it clearly instead of pretending it is finished.

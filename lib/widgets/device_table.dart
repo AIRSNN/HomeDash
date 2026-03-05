@@ -189,6 +189,29 @@ class DeviceTable extends StatelessWidget {
                     },
                     child: const Text('Test Komutu Hazırla'),
                   ),
+                if (isOnline)
+                  TextButton(
+                    onPressed: () async {
+                      final service = DeviceCommandService();
+                      final payload = service.generateDryRunPayload(device.role, device.ip);
+                      final isSuccess = await service.sendCommand(device.ip, payload);
+
+                      if (!context.mounted) {
+                        return;
+                      }
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            isSuccess
+                                ? 'Komut başarıyla gönderildi'
+                                : 'Komut gönderilemedi!',
+                          ),
+                        ),
+                      );
+                    },
+                    child: const Text('Gerçek Komut Gönder'),
+                  ),
                 TextButton(
                    onPressed: () => Navigator.of(context).pop(),
                   child: const Text('Kapat'),

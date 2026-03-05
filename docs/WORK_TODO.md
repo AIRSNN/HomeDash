@@ -20,12 +20,25 @@ Bu dosya projede yapılacak işleri, alınan kararları ve bekleyen görevleri l
 > ⚠️ **Kural:** Gerçek HTTP POST (`sendCommand`) yalnızca `docs/COMMAND_SCHEMA_SOT.md` onaylandıktan sonra kodlanabilir.
 > ⛔ **Uyarı:** `sendCommand()` servisi tamamlanmadan UI tarafına gerçek komut bağlantısı eklenmemelidir.
 
-1. **[SONRAKİ ADIM — Faz 4-b]** `device_command_service.dart` içindeki `sendCommand()` placeholder'ını şema-doğrulamalı gerçek HTTP POST ile değiştir:
+1. **[TAMAMLANDI - Faz 4-b]** `device_command_service.dart` içindeki `sendCommand()` placeholder'ını şema-doğrulamalı gerçek HTTP POST ile değiştir:
    - `action` / `target` / `deviceIp` doğrulaması (R-01 – R-05)
    - Geçersiz kombinasyonlarda `false` dön, istek gönderme
    - Timeout + try/catch korumalı `dart:io` `HttpClient` POST
    - Yalnızca bu tek metot değiştirilmeli; başka dosya dokunulmamalı
-2. **Servis doğrulandıktan sonra:** UI detay dialoguna gerçek gönder butonu eklenebilir. (Faz 4-c)
+2. **[TAMAMLANDI - Faz 4-c]** UI detay dialoguna gerçek gönder butonu eklendi ve `sendCommand()` bağlantısı yapıldı.
 3. **İsteğe bağlı:** `flutter analyze` `info` uyarılarını gidermek için tüm `/// MADAM Projesi - ...` başlık yorumlarından sonra `library <isim>;` direktifi ekle.
 
+4. **[SONRAKI ADIM - Faz 5]** Otomasyon ve kural motoru için temel görev planını oluştur.
+## Status Update (2026-03-05)
+- [x] Phase 4-b completed.
+- [x] Phase 4-c completed.
+- [ ] Next pending phase: Phase 5.
 
+- [x] Graceful Shutdown (Clean Exit) akisi eklendi: `top_control_bar.dart` Exit butonu + `dashboard_state.dart` temiz kapatma sirasi.
+
+## Status Update (2026-03-05 - Graceful Exit)
+- [x] Exit butonu UI'ya eklendi.
+- [x] Timer/polling taramalari kapatma adimi uygulandi.
+- [x] `HttpClient.close(force: true)` ile baglanti temizleme eklendi.
+- [x] `exit(0)` ile uygulama sonlandirma eklendi.
+- [ ] Next pending phase: Faz 5.

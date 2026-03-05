@@ -1,5 +1,6 @@
 /// MADAM Projesi - UI ve Durum (State) Yönetimi Merkezi
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/device_info.dart';
 import '../models/device_status.dart';
@@ -19,6 +20,7 @@ class DashboardState extends ChangeNotifier {
   Timer? _pollingTimer;
   bool isPolling = false; // Döngü aktif mi?
   bool isScanning = false; // O an aktif bir tarama işlemi dönüyor mu?
+  bool _isShuttingDown = false;
   
   DateTime? lastScanTime;
   String statusMessage = 'Sistem hazır. Tarama başlatılabilir.';
@@ -50,6 +52,8 @@ class DashboardState extends ChangeNotifier {
   }
 
   void startPingLoop() {
+    if (_isShuttingDown) return;
+
     if (isPolling) {
       addLog('Tarama zaten aktif.');
       return; 
@@ -83,7 +87,7 @@ class DashboardState extends ChangeNotifier {
   
   /// Ağdaki bilinen tüm IP adreslerine (8080) asenkron TCP ping gönderir.
   Future<void> _scanAllDevices() async {
-    if (isScanning) return; // Çakışmayı önle
+    if (_isShuttingDown || isScanning) return; // Çakışmayı önle
     
     isScanning = true;
     statusMessage = 'Ağ taranıyor...';
@@ -93,6 +97,8 @@ class DashboardState extends ChangeNotifier {
     
     // Tüm cihazlara eşzamanlı async operasyon başlatılır
     final futures = devices.map((device) async {
+      if (_isShuttingDown) return;
+
       // 1. Önce cihaz ağda var mı diye portuna bak (Ping)
       final pingResult = await _pingService.pingDevice(device.ip);
       pingLatencies[device.ip] = pingResult.rttMs;
@@ -110,6 +116,8 @@ class DashboardState extends ChangeNotifier {
 
     await Future.wait(futures);
 
+    if (_isShuttingDown) return;
+
     isScanning = false;
     lastScanTime = DateTime.now();
     statusMessage = 'Tarama tamamlandı. $onlineCount aktif cihaz bulundu.';
@@ -117,9 +125,27 @@ class DashboardState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> gracefulShutdownAndExit() async {
+    if (_isShuttingDown) return;
+    _isShuttingDown = true;
+
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+    isPolling = false;
+    isScanning = false;
+    statusMessage = 'Uygulama kapatiliyor...';
+    addLog('Graceful shutdown tetiklendi. Tum ag taramalari durduruldu.');
+
+    _commandService.closeClient();
+    notifyListeners();
+
+    exit(0);
+  }
+
   @override
   void dispose() {
     _pollingTimer?.cancel();
+    _commandService.closeClient();
     super.dispose();
   }
 }

@@ -66,6 +66,16 @@ class TopControlBar extends StatelessWidget {
                   foregroundColor: Colors.black87,
                 ),
               ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: state.gracefulShutdownAndExit,
+                icon: const Icon(Icons.exit_to_app),
+                label: const Text('Çıkış'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  side: const BorderSide(color: Colors.red),
+                ),
+              ),
             ],
           ),
         ],
