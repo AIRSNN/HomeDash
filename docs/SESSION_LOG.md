@@ -46,3 +46,8 @@ Proje `flutter build windows` ile başarıyla derlenmekte, dry-run komut önizle
 - Kapatma sirasinda polling timer hemen iptal ediliyor, tarama durumlari kapatiliyor ve yeni taramalar bloklaniyor.
 - `DeviceCommandService` icindeki `HttpClient` baglantilari `close(force: true)` ile kapatilarak portlar serbest birakiliyor.
 - Son adimda uygulama `exit(0)` ile temiz sekilde sonlandiriliyor.
+
+## Session Update - Firmware Sources Added (2026-03-05)
+- ESP8266 ve ESP32-C6 firmware kaynak kodlari ayni repository altina eklendi.
+- Yeni klasor yolu: `docs/Arduino/HomeDash/...`
+- Amac: donanim (firmware) ve dashboard yazilimini tek repoda birlikte versiyonlamak.
