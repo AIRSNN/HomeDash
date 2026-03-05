@@ -14,6 +14,35 @@ class DeviceCommandService {
     return false; // Başarısızlık senaryosunu test etmek için şimdilik false
   }
 
+  /// Bu metod sadece Dry-Run testi içindir. Gerçek ağ isteği yapmaz.
+  Map<String, dynamic> generateDryRunPayload(String role, String ipAddress) {
+    String action = 'unknown';
+    String target = 'none';
+    dynamic value = 0;
+
+    if (role.toUpperCase().contains('RELAY')) {
+      action = 'toggle';
+      target = 'relay_1';
+      value = true;
+    } else if (role.toUpperCase().contains('SENSOR')) {
+      action = 'read';
+      target = 'sensor_data';
+      value = 'all';
+    } else {
+      action = 'ping';
+      target = 'system';
+      value = null;
+    }
+
+    return {
+      'action': action,
+      'target': target,
+      'value': value,
+      'deviceIp': ipAddress,
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+  }
+
   /// Cihazdan HTTP GET ile /status json okumasını yapar.
   /// Çökmeyi engelleyen try-catch ve timeout korumalıdır.
   Future<DeviceStatus> getDeviceStatus(String ipAddress) async {
