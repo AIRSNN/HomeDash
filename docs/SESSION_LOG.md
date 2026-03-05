@@ -14,6 +14,8 @@ Bu dosya oturum sırasındaki önemli aşamaları, kararları ve tamamlanan adı
 - **HTTP JSON Durum Okuma (Faz 3):** `device_command_service.dart` üzerinden `GET /status` endpointine istek atan yapı eklendi. Çökmeyi engelleyen null-safe `DeviceStatus` fallback sistemi geliştirildi.
 - **UI Entegrasyonu:** `DeviceTable` içerisine "Durum Verisi / JSON" sütunu eklendi. Gelen dinamik JSON verisi (relay, is_active, temperature vb.) parse edilerek kısa özet olarak arayüze bastırıldı. Timer aktifleştikçe UI yenilenmesi sağlandı.
 
-**Henüz Yapılmayanlar (Sonraki Adımlar):**
-- Ayrıntılar dialogu (cihaz satırı sonundaki ayarlar butonu) uygulanmadı.
-- Cihazlara komut gönderme (`sendCommand`) POST işlemi uygulanmadı.
+## Bugünkü Oturum Kayıtları — Ayrıntılar Dialogu ve Dry-Run Önizleme (2026-03-05)
+- **Ayrıntılar Dialogu (Faz 4-a):** `DeviceTable` satır eylemlerine (`settings` ikonu) bağlı salt-okuma bir cihaz detay dialogu eklendi. Dialog; IP, durum (Online/Offline), son görülme saati, JSON özeti ve `rawData` anahtar listesini göstermektedir.
+- **Dry-Run Komut Önizleme:** Dialog içine "Test Komutu Hazırla" butonu entegre edildi. Buton yalnızca cihaz online iken görünür; tıklandığında `DeviceCommandService.generateDryRunPayload()` çağrılır, üretilen payload (`action`, `target`, `value`, `deviceIp`) dialog içinde monospace kutuda gösterilir. Hiçbir HTTP isteği yapılmaz.
+- **Eksik Import Giderildi:** `DeviceCommandService` sınıfı `device_table.dart` içinde kullanılıyor ancak import edilmemişti; `lib/services/device_command_service.dart` import satırı eklenerek derleme hatası temizlendi.
+- **Windows Build Başarılı:** `flutter build windows` çalıştırıldı, `homedash.exe` başarıyla üretildi (çıkış kodu 0). `flutter analyze` sıfır hata döndürdü (yalnızca `info`-seviyesi doc comment uyarıları).
