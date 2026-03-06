@@ -1,8 +1,18 @@
 /// MADAM Projesi - Giriş Noktası
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'app.dart';
+import 'state/dashboard_state.dart';
 
 void main() {
-  // TODO: Gelecekte servis ilklendirmeleri ve config yüklemeleri buraya eklenecek
-  runApp(const MadamApp());
+  // Flutter motorunun ilklendirilmesini garanti altına alalım
+  WidgetsFlutterBinding.ensureInitialized();
+
+  runApp(
+    // State yönetimini tüm uygulamaya en tepeden sağlıyoruz
+    ChangeNotifierProvider(
+      create: (_) => DashboardState(),
+      child: const MadamApp(),
+    ),
+  );
 }

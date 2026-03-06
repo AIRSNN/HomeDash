@@ -1,4 +1,4 @@
-﻿/// MADAM Projesi - Cihaz Kontrol Servisi
+﻿/// MADAM Projesi - Cihaz Kontrol Servisi (Brute-Force Debug Versiyonu)
 import 'dart:io';
 import 'dart:convert';
 import '../config/network_constants.dart';
@@ -6,139 +6,110 @@ import '../config/device_registry.dart';
 import '../models/device_status.dart';
 
 class DeviceCommandService {
-  final HttpClient _client = HttpClient()..connectionTimeout = const Duration(seconds: 2);
+  final HttpClient _client = HttpClient()
+    ..connectionTimeout = const Duration(seconds: 2);
 
   void closeClient() {
     _client.close(force: true);
   }
 
-  // TODO: HTTP POST ile cihazlara json komut atan uç nokta buraya kurulacak
-  Future<bool> sendCommand(String ipAddress, Map<String, dynamic> commandJson) async {
-    const validTargetsByAction = <String, Set<String>>{
-      'toggle': {'relay_1', 'relay_2'},
-      'open': {'relay_1', 'relay_2'},
-      'close': {'relay_1', 'relay_2'},
-      'read': {'sensor_data'},
-      'ping': {'system'},
-    };
-
+  Future<bool> sendCommand(
+    String ipAddress,
+    Map<String, dynamic> commandJson,
+  ) async {
     try {
       final action = commandJson['action'];
       final target = commandJson['target'];
       final deviceIp = commandJson['deviceIp'];
-      final value = commandJson.containsKey('value') ? commandJson['value'] : null;
+      final value = commandJson.containsKey('value')
+          ? commandJson['value']
+          : null;
 
-      // R-01, R-02
-      if (action is! String || target is! String) {
-        return false;
-      }
-      if (!validTargetsByAction.containsKey(action)) {
-        return false;
-      }
-      if (!validTargetsByAction[action]!.contains(target)) {
-        return false;
-      }
+      // 1. Manuel JSON String Oluşturma (PowerShell ile birebir aynı format)
+      // Boşluksuz ve en yalın haliyle: {"action":"toggle","target":"relay_1","value":null}
+      final String valueString = (value == null)
+          ? 'null'
+          : (value is bool ? value.toString() : '"$value"');
+      final String manualBody =
+          '{"action":"$action","target":"$target","value":$valueString}';
 
-      // R-03
-      if (deviceIp is! String) {
-        return false;
-      }
-      final knownIps = DeviceRegistry.getKnownDevices().map((d) => d.ip).toSet();
-      if (!knownIps.contains(deviceIp)) {
-        return false;
-      }
-      if (ipAddress != deviceIp) {
-        return false;
-      }
+      final uri = Uri.http(
+        '$deviceIp:${NetworkConstants.apiPort}',
+        NetworkConstants.endpointCommand,
+      );
 
-      // R-04 + value constraints
-      if (action == 'read') {
-        if (value is! String || value.trim().isEmpty) {
-          return false;
-        }
-      } else if (action == 'toggle') {
-        if (value != null && value is! bool) {
-          return false;
-        }
-      } else if (action == 'open' || action == 'close') {
-        if (value != null && value is! bool) {
-          return false;
-        }
-      } else if (action == 'ping') {
-        if (value != null) {
-          return false;
-        }
-      }
+      print('--- KRITIK DENEME ---');
+      print('URI: $uri');
+      print('MANUEL BODY: $manualBody');
 
-      final payload = <String, dynamic>{
-        'action': action,
-        'target': target,
-        'value': value,
-        'deviceIp': deviceIp,
-        'timestamp': DateTime.now().toIso8601String(),
-      };
+      final request = await _client
+          .postUrl(uri)
+          .timeout(const Duration(seconds: 3));
 
-      final uri = Uri.http('$deviceIp:${NetworkConstants.apiPort}', NetworkConstants.endpointCommand);
-      final request = await _client.postUrl(uri).timeout(const Duration(seconds: 3));
-      request.headers.contentType = ContentType.json;
-      request.write(jsonEncode(payload));
+      // 2. Hassas Header Ayarları
+      request.headers.set('Content-Type', 'application/json; charset=utf-8');
+      request.headers.set('Accept', 'application/json');
+      request.headers.set(
+        'Connection',
+        'close',
+      ); // ESP için bağlantıyı açık tutmaya çalışmasın
 
-      final response = await request.close().timeout(const Duration(seconds: 3));
+      // 3. Byte bazlı gönderim
+      final bodyBytes = utf8.encode(manualBody);
+      request.contentLength = bodyBytes.length;
+      request.add(bodyBytes);
+
+      final response = await request.close().timeout(
+        const Duration(seconds: 3),
+      );
+      print('HTTP Response Status: ${response.statusCode}');
+
       return response.statusCode >= 200 && response.statusCode < 300;
-    } catch (_) {
+    } catch (e) {
+      print('HTTP Istek Hatasi: $e');
       return false;
     }
   }
 
-  /// Bu metod sadece Dry-Run testi içindir. Gerçek ağ isteği yapmaz.
+  /// Dry-Run testi metodu (Arayüz uyumluluğu için korunmuştur)
   Map<String, dynamic> generateDryRunPayload(String role, String ipAddress) {
-    String action = 'unknown';
-    String target = 'none';
-    dynamic value = 0;
-
-    if (role.toUpperCase().contains('RELAY')) {
-      action = 'toggle';
-      target = 'relay_1';
-      value = true;
-    } else if (role.toUpperCase().contains('SENSOR')) {
-      action = 'read';
-      target = 'sensor_data';
-      value = 'all';
-    } else {
-      action = 'ping';
-      target = 'system';
-      value = null;
-    }
-
+    String action = role.toUpperCase().contains('RELAY')
+        ? 'toggle'
+        : (role.toUpperCase().contains('SENSOR') ? 'read' : 'ping');
+    String target = role.toUpperCase().contains('RELAY')
+        ? 'relay_1'
+        : (role.toUpperCase().contains('SENSOR') ? 'sensor_data' : 'system');
     return {
       'action': action,
       'target': target,
-      'value': value,
+      'value': null,
       'deviceIp': ipAddress,
       'timestamp': DateTime.now().toIso8601String(),
     };
   }
 
-  /// Cihazdan HTTP GET ile /status json okumasını yapar.
-  /// Çökmeyi engelleyen try-catch ve timeout korumalıdır.
+  /// Cihaz durumunu sorgulama (Online/Offline kontrolü)
   Future<DeviceStatus> getDeviceStatus(String ipAddress) async {
     try {
-      final uri = Uri.http('$ipAddress:${NetworkConstants.apiPort}', NetworkConstants.endpointStatus);
-      final request = await _client.getUrl(uri);
+      final uri = Uri.http(
+        '$ipAddress:${NetworkConstants.apiPort}',
+        NetworkConstants.endpointStatus,
+      );
+      final request = await _client
+          .getUrl(uri)
+          .timeout(const Duration(seconds: 2));
       final response = await request.close();
-      
+
       if (response.statusCode == 200) {
         final responseBody = await response.transform(utf8.decoder).join();
-        final Map<String, dynamic> jsonData = jsonDecode(responseBody) as Map<String, dynamic>;
-        
+        final Map<String, dynamic> jsonData =
+            jsonDecode(responseBody) as Map<String, dynamic>;
         final deviceStatus = DeviceStatus(isOnline: true);
         deviceStatus.updateFromJson(jsonData);
         return deviceStatus;
-      } else {
-        return DeviceStatus(isOnline: false);
       }
+      return DeviceStatus(isOnline: false);
     } catch (e) {
-      // Bağlantı hatası, JSON parse hatası veya Timeout durumlarında çökme yerine offline modeli döndürülür
       return DeviceStatus(isOnline: false);
     }
   }

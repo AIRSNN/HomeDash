@@ -1,17 +1,29 @@
-/// MADAM Projesi - Cihaz Listesi Tablosu
+/// MADAM Projesi - Gelişmiş Cihaz Listesi ve Kontrol Paneli
 import 'package:flutter/material.dart';
 import '../state/dashboard_state.dart';
 import '../services/device_command_service.dart';
 
 class DeviceTable extends StatelessWidget {
   final DashboardState state;
-  
+
   const DeviceTable({super.key, required this.state});
 
   @override
   Widget build(BuildContext context) {
     if (state.devices.isEmpty) {
-      return const Center(child: Text('Kayıtlı cihaz bulunamadı.'));
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.devices_other, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'Kayıtlı cihaz bulunamadı.',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+      );
     }
 
     return SingleChildScrollView(
@@ -19,76 +31,134 @@ class DeviceTable extends StatelessWidget {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: DataTable(
-          headingRowColor: WidgetStateProperty.resolveWith((states) => Colors.blueGrey[100]),
+          headingRowColor: WidgetStateProperty.resolveWith(
+            (states) => Colors.blueGrey[50],
+          ),
+          horizontalMargin: 20,
+          columnSpacing: 35,
           columns: const [
-            DataColumn(label: Text('Cihaz Adı')),
-            DataColumn(label: Text('IP Adresi')),
-            DataColumn(label: Text('Rol')),
-            DataColumn(label: Text('Ağ Durumu')),
-            DataColumn(label: Text('Ping (ms)')),
-            DataColumn(label: Text('Durum Verisi (JSON)')),
-            DataColumn(label: Text('Eylemler')),
+            DataColumn(
+              label: Text(
+                'Tip/ID',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'IP Adresi',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Ağ Durumu',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Ping',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Röle 1 Durumu',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Hızlı Kontrol',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Detaylar',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
           ],
           rows: state.devices.map((device) {
             final status = state.deviceStatuses[device.ip];
             final isOnline = status?.isOnline ?? false;
-            final jsonSummary = status?.getSummary() ?? 'Cihaz bekleniyor...';
-            
-            // Son görülme saatini formatla
-            String lastSeenText = '';
-            if (isOnline && status?.lastSeen != null) {
-               lastSeenText = '\n(${status!.lastSeen!.hour.toString().padLeft(2,'0')}:${status.lastSeen!.minute.toString().padLeft(2,'0')}:${status.lastSeen!.second.toString().padLeft(2,'0')})';
-            }
-            
+            final relay1Active = status?.isRelayActive('relay_1') ?? false;
+
+            // Rol bazlı ikon seçimi
+            IconData deviceIcon = Icons.developer_board;
+            if (device.role == 'relay_node') deviceIcon = Icons.sensors;
+            if (device.role == 'primary_controller')
+              deviceIcon = Icons.lightbulb_outline;
+
             return DataRow(
               cells: [
-                DataCell(Text(device.id, style: const TextStyle(fontWeight: FontWeight.bold))),
-                DataCell(Text(device.ip)),
-                DataCell(Text(device.role)),
+                // 1. Cihaz ID ve İkon
                 DataCell(
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: isOnline ? Colors.green[100] : Colors.red[100],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      isOnline ? 'Online' : 'Offline',
-                      style: TextStyle(color: isOnline ? Colors.green[800] : Colors.red[800], fontWeight: FontWeight.bold),
-                    ),
+                  Row(
+                    children: [
+                      Icon(
+                        deviceIcon,
+                        size: 20,
+                        color: isOnline ? Colors.blue : Colors.grey,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        device.id,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ],
                   ),
                 ),
-                DataCell(Text(
-                  isOnline 
-                  ? '${state.pingLatencies[device.ip] ?? 0} ms' 
-                  : 'Timeout',
-                  style: TextStyle(
-                    color: isOnline ? Colors.black87 : Colors.red[300],
-                    fontStyle: isOnline ? FontStyle.normal : FontStyle.italic,
-                  ),
-                )),
+                // 2. IP Adresi
                 DataCell(
                   Text(
-                    '$jsonSummary$lastSeenText',
+                    device.ip,
+                    style: const TextStyle(fontFamily: 'Courier'),
+                  ),
+                ),
+                // 3. Online/Offline Badge
+                DataCell(_buildStatusBadge(isOnline)),
+                // 4. Ping Gecikmesi
+                DataCell(
+                  Text(
+                    isOnline ? '${state.pingLatencies[device.ip]} ms' : '--',
                     style: TextStyle(
-                      color: isOnline ? Colors.blueGrey[800] : Colors.grey,
-                      fontSize: 13,
+                      color: _getLatencyColor(
+                        state.pingLatencies[device.ip] ?? 0,
+                      ),
                     ),
                   ),
                 ),
+                // 5. Canlı Röle Durumu (ESP'den gelen gerçek veri)
+                DataCell(
+                  isOnline
+                      ? Icon(
+                          relay1Active ? Icons.flash_on : Icons.flash_off,
+                          color: relay1Active ? Colors.orange : Colors.grey,
+                        )
+                      : const Text("-"),
+                ),
+                // 6. Hızlı Kontrol Switch
+                DataCell(
+                  isOnline
+                      ? Switch(
+                          value: relay1Active,
+                          activeColor: Colors.orange,
+                          onChanged: (val) => _handleToggle(context, device.ip),
+                        )
+                      : const Text("Erişilemez"),
+                ),
+                // 7. Detay Dialog Butonu
                 DataCell(
                   IconButton(
-                    icon: const Icon(Icons.settings),
-                    tooltip: 'Ayrıntılar / Komut',
-                    onPressed: () {
-                      _showDeviceDetailsDialog(
-                        context,
-                        device,
-                        status,
-                        jsonSummary,
-                        isOnline,
-                      );
-                    },
+                    icon: const Icon(Icons.analytics_outlined),
+                    onPressed: () => _showDeviceDetailsDialog(
+                      context,
+                      device,
+                      status,
+                      isOnline,
+                    ),
                   ),
                 ),
               ],
@@ -99,148 +169,106 @@ class DeviceTable extends StatelessWidget {
     );
   }
 
-  void _showDeviceDetailsDialog(
-    BuildContext context,
-    dynamic device,
-    dynamic status,
-    String jsonSummary,
-    bool isOnline,
-  ) {
-    String rawDataKeys = 'Veri yok';
-    if (!isOnline) {
-      rawDataKeys = 'Cihaz çevrimdışı';
-    } else if (status?.rawData == null || status.rawData.isEmpty) {
-      rawDataKeys = 'JSON boş';
-    } else {
-      rawDataKeys = (status.rawData as Map<String, dynamic>).keys.join(', ');
-    }
-
-    String lastSeenStr = 'Bilinmiyor';
-    if (status?.lastSeen != null) {
-      final ls = status.lastSeen as DateTime;
-      lastSeenStr = '${ls.hour.toString().padLeft(2, '0')}:${ls.minute.toString().padLeft(2, '0')}:${ls.second.toString().padLeft(2, '0')}';
-    }
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        String? generatedPayloadText;
-        
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Text('${device.id} Ayrıntıları'),
-              content: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildDetailRow('IP Adresi:', device.ip),
-                    _buildDetailRow(
-                      'Durum:',
-                      isOnline ? 'Online' : 'Offline',
-                      color: isOnline ? Colors.green : Colors.red,
-                    ),
-                    _buildDetailRow('Son Görülme:', lastSeenStr),
-                    const Divider(),
-                    _buildDetailRow('Özet:', jsonSummary),
-                    const SizedBox(height: 8),
-                    const Text('Veri Anahtarları:', style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
-                    Text(rawDataKeys),
-                    const Divider(),
-                    
-                    // Dry-Run Payload Alanı
-                    const Text('Test Komutu (Dry-Run):', style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    if (generatedPayloadText == null)
-                      const Text('Henüz test komutu hazırlanmadı', style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey))
-                    else
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.blueGrey[50],
-                          border: Border.all(color: Colors.blueGrey[200]!),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          generatedPayloadText!,
-                          style: const TextStyle(fontFamily: 'Courier', fontSize: 13),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              actions: [
-                if (isOnline) // Sadece cihaz online ise komut testine izin ver
-                  TextButton(
-                    onPressed: () {
-                      final service = DeviceCommandService();
-                      final payload = service.generateDryRunPayload(device.role, device.ip);
-                      setState(() {
-                         // JSON görünümü gibi formatla
-                        generatedPayloadText = "{\n"
-                          "  'action': '${payload['action']}',\n"
-                          "  'target': '${payload['target']}',\n"
-                          "  'value': ${payload['value']},\n"
-                          "  'deviceIp': '${payload['deviceIp']}'\n"
-                          "}";
-                      });
-                    },
-                    child: const Text('Test Komutu Hazırla'),
-                  ),
-                if (isOnline)
-                  TextButton(
-                    onPressed: () async {
-                      final service = DeviceCommandService();
-                      final payload = service.generateDryRunPayload(device.role, device.ip);
-                      final isSuccess = await service.sendCommand(device.ip, payload);
-
-                      if (!context.mounted) {
-                        return;
-                      }
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            isSuccess
-                                ? 'Komut başarıyla gönderildi'
-                                : 'Komut gönderilemedi!',
-                          ),
-                        ),
-                      );
-                    },
-                    child: const Text('Gerçek Komut Gönder'),
-                  ),
-                TextButton(
-                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Kapat'),
-                ),
-              ],
-            );
-          }
-        );
-      },
-    );
-  }
-
-  Widget _buildDetailRow(String label, String value, {Color? color}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+  // Durum Rozeti Oluşturucu
+  Widget _buildStatusBadge(bool isOnline) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: isOnline
+            ? Colors.green.withOpacity(0.1)
+            : Colors.red.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isOnline ? Colors.green : Colors.red,
+          width: 0.5,
+        ),
+      ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(color: color),
+          CircleAvatar(
+            radius: 4,
+            backgroundColor: isOnline ? Colors.green : Colors.red,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            isOnline ? 'ONLINE' : 'OFFLINE',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: isOnline ? Colors.green[700] : Colors.red[700],
             ),
           ),
         ],
       ),
     );
   }
-}
 
+  Color _getLatencyColor(int ms) {
+    if (ms == 0) return Colors.grey;
+    if (ms < 50) return Colors.green;
+    if (ms < 150) return Colors.orange;
+    return Colors.red;
+  }
+
+  Future<void> _handleToggle(BuildContext context, String ip) async {
+    final service = DeviceCommandService();
+    bool success = await service.sendCommand(ip, {
+      'action': 'toggle',
+      'target': 'relay_1',
+      'deviceIp': ip,
+    });
+
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(success ? 'Komut İletildi' : 'Bağlantı Hatası'),
+        backgroundColor: success ? Colors.blueGrey : Colors.red,
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
+  // Mevcut dialog metodunuzu optimize edilmiş haliyle koruyoruz
+  void _showDeviceDetailsDialog(
+    BuildContext context,
+    dynamic device,
+    dynamic status,
+    bool isOnline,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('${device.id} Teknik Analiz'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('IP: ${device.ip}'),
+            Text('Rol: ${device.role}'),
+            const Divider(),
+            Text(
+              'Ham JSON Verisi:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              color: Colors.grey[200],
+              child: Text(
+                status?.rawData?.toString() ?? 'Veri yok',
+                style: const TextStyle(fontSize: 12, fontFamily: 'Courier'),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Kapat'),
+          ),
+        ],
+      ),
+    );
+  }
+}

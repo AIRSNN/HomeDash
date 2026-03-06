@@ -49,3 +49,24 @@ windows/flutter/ephemeral/
 .packages
 .flutter-plugins
 
+# Windows build outputs and executables
+*.exe
+*.pdb
+*.ilk
+*.lib
+*.exp
+*.dll
+*.msix
+*.msixbundle
+/windows/runner/Release/
+/windows/runner/Debug/
+
+# Flutter generated and cache paths
+.fvm/
+.flutter/
+
+# Local sensitive/runtime config
+ip_config.json
+*.env
+*.env.*
+

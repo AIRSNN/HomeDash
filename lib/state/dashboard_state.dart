@@ -1,4 +1,4 @@
-/// MADAM Projesi - UI ve Durum (State) Yönetimi Merkezi
+/// MADAM Projesi - Merkezi Durum Yönetimi (M2M Otomasyon & Optimizasyon)
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -11,22 +11,24 @@ import '../services/ping_service.dart';
 class DashboardState extends ChangeNotifier {
   final List<DeviceInfo> devices = DeviceRegistry.getKnownDevices();
   final Map<String, DeviceStatus> deviceStatuses = {};
-  
+
   // Servisler
   final PingService _pingService = PingService();
   final DeviceCommandService _commandService = DeviceCommandService();
-  
-  // Polling (Tarama) için asenkron Timer
+
+  // Polling Ayarları
   Timer? _pollingTimer;
-  bool isPolling = false; // Döngü aktif mi?
-  bool isScanning = false; // O an aktif bir tarama işlemi dönüyor mu?
+  bool isPolling = false;
+  bool isScanning = false;
   bool _isShuttingDown = false;
-  
+
+  // Otomasyon Belleği (Sürekli tetiklemeyi önlemek için)
+  // ESP8266'nın son durumunu saklar: "on" veya "off"
+  String? _lastSensorState;
+
   DateTime? lastScanTime;
-  String statusMessage = 'Sistem hazır. Tarama başlatılabilir.';
+  String statusMessage = 'Sistem hazır.';
   final List<String> logs = [];
-  
-  // Ping istatistiklerini UI'da (tabloda) göstermek için geçici map (ip -> ms)
   final Map<String, int> pingLatencies = {};
 
   DashboardState() {
@@ -36,109 +38,125 @@ class DashboardState extends ChangeNotifier {
   void addLog(String message) {
     final timeStr = DateTime.now().toIso8601String().substring(11, 19);
     logs.insert(0, '[$timeStr] $message');
-    if (logs.length > 20) {
-      logs.removeLast();
-    }
+    if (logs.length > 50) logs.removeLast(); // Log kapasitesini artırdık
     notifyListeners();
   }
 
   void initializeDashboard() {
-    // Başlangıçta tüm cihazlar 'offline' varsayılarak kaydedilir
     for (var device in devices) {
       deviceStatuses[device.ip] = DeviceStatus(isOnline: false);
       pingLatencies[device.ip] = 0;
     }
-    addLog('Uygulama state başlatıldı. Cihaz listesi yüklendi.');
+    addLog('Uygulama ilklendirildi. Cihazlar hazır.');
   }
 
   void startPingLoop() {
-    if (_isShuttingDown) return;
-
-    if (isPolling) {
-      addLog('Tarama zaten aktif.');
-      return; 
-    }
-    
+    if (_isShuttingDown || isPolling) return;
     isPolling = true;
-    statusMessage = 'Ağ dinleme aktif.';
-    addLog('Ping döngüsü başlatıldı.');
-    notifyListeners();
-    
-    // Anında bir ilk tarama yapalım (Timer beklememesi için)
-    _scanAllDevices();
+    statusMessage = 'Otomasyon aktif.';
+    addLog('M2M Otomasyon döngüsü başlatıldı (10 sn aralık).');
 
-    // 10 Saniyede bir tüm ağı asenkron olarak pingler
-    _pollingTimer?.cancel(); // Güvenlik amaçlı eski timer varsa ez
+    _scanAllDevices();
     _pollingTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
       _scanAllDevices();
     });
+    notifyListeners();
   }
 
   void stopPingLoop() {
-    if (!isPolling) return;
     _pollingTimer?.cancel();
-    _pollingTimer = null;
     isPolling = false;
-    isScanning = false;
-    statusMessage = 'Ağ dinleme durduruldu.';
-    addLog('Ping döngüsü durduruldu.');
+    statusMessage = 'Otomasyon durduruldu.';
+    addLog('Döngü kullanıcı tarafından durduruldu.');
     notifyListeners();
   }
-  
-  /// Ağdaki bilinen tüm IP adreslerine (8080) asenkron TCP ping gönderir.
+
+  /// Tüm ağı tarayan ana asenkron metod
   Future<void> _scanAllDevices() async {
-    if (_isShuttingDown || isScanning) return; // Çakışmayı önle
-    
+    if (_isShuttingDown || isScanning) return;
     isScanning = true;
-    statusMessage = 'Ağ taranıyor...';
     notifyListeners();
 
     int onlineCount = 0;
-    
-    // Tüm cihazlara eşzamanlı async operasyon başlatılır
-    final futures = devices.map((device) async {
-      if (_isShuttingDown) return;
 
-      // 1. Önce cihaz ağda var mı diye portuna bak (Ping)
+    // Tüm cihazlara paralel olarak durum sorgusu atılır
+    final futures = devices.map((device) async {
       final pingResult = await _pingService.pingDevice(device.ip);
       pingLatencies[device.ip] = pingResult.rttMs;
-      
+
       if (pingResult.isSuccess) {
-        // 2. Cihaz ayaktaysa HTTP Get metoduyla json status isteği at
         final statusResult = await _commandService.getDeviceStatus(device.ip);
         deviceStatuses[device.ip] = statusResult;
         if (statusResult.isOnline) onlineCount++;
       } else {
-        // Ping başarısızsa direk offline yaz
         deviceStatuses[device.ip] = DeviceStatus(isOnline: false);
       }
     }).toList();
 
     await Future.wait(futures);
 
-    if (_isShuttingDown) return;
+    // TARAMA SONRASI OTOMASYON KONTROLÜ
+    await _checkAutomationLogic();
 
     isScanning = false;
     lastScanTime = DateTime.now();
-    statusMessage = 'Tarama tamamlandı. $onlineCount aktif cihaz bulundu.';
-    addLog('Tarama bitti: ${devices.length} IP sorgulandı, $onlineCount aktif.');
+    statusMessage = 'Tarama bitti. $onlineCount cihaz aktif.';
     notifyListeners();
   }
 
+  /// Makineler Arası (M2M) Karar Mekanizması
+  Future<void> _checkAutomationLogic() async {
+    // .ino dosyalarına göre: .20 Sensör/Anahtar, .29 Hedef Röle
+    const String sensorIp = "192.168.55.20";
+    const String relayIp = "192.168.55.29";
+
+    final sensorStatus = deviceStatuses[sensorIp];
+    final targetStatus = deviceStatuses[relayIp];
+
+    if (sensorStatus != null && sensorStatus.isOnline) {
+      // Mevcut durumu oku
+      bool isCurrentlyActive = sensorStatus.isRelayActive('relay_1');
+      String currentState = isCurrentlyActive ? "on" : "off";
+
+      // --- EDGE TRIGGER MANTIĞI ---
+      // Eğer durum OFF'tan ON'a geçtiyse (Yani anahtar yeni kapandıysa/hareket algılandıysa)
+      if (currentState == "on" && _lastSensorState == "off") {
+        addLog('OTOMASYON: $sensorIp tetiklendi! Hedef (.29) güncelleniyor.');
+
+        if (targetStatus != null && targetStatus.isOnline) {
+          bool success = await _commandService.sendCommand(relayIp, {
+            "action": "toggle",
+            "target": "relay_1",
+            "deviceIp": relayIp,
+          });
+
+          if (success) {
+            addLog('OTOMASYON BAŞARILI: M2M komutu uygulandi.');
+          } else {
+            addLog('HATA: Otomasyon komutu iletilemedi.');
+          }
+        } else {
+          addLog('UYARI: Hedef cihaz (.29) offline, otomasyon atlandi.');
+        }
+      }
+
+      // Durumu bir sonraki karşılaştırma için kaydet
+      _lastSensorState = currentState;
+    }
+  }
+
+  /// Uygulama kapanırken kaynakları temizler
   Future<void> gracefulShutdownAndExit() async {
     if (_isShuttingDown) return;
     _isShuttingDown = true;
 
+    addLog('Sistem kapatılıyor, bağlantılar kesiliyor...');
     _pollingTimer?.cancel();
-    _pollingTimer = null;
-    isPolling = false;
-    isScanning = false;
-    statusMessage = 'Uygulama kapatiliyor...';
-    addLog('Graceful shutdown tetiklendi. Tum ag taramalari durduruldu.');
-
     _commandService.closeClient();
-    notifyListeners();
 
+    notifyListeners();
+    // Kısa bir bekleme süresi (Logların görülmesi için)
+    await Future.delayed(const Duration(seconds: 1));
     exit(0);
   }
 
