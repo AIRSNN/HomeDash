@@ -1,15 +1,12 @@
-# MADAM Projesi - Ana Bağlam Dosyası
+# MADAM Projesi - Ana Bağlam Dosyası (Güncel: 6 Mart 2026)
 
 ## 1. Proje Kimliği
 - Proje adı: **HomeDash**
-- Kod adı: **MADAM**
-- Amaç: Ev içi test ortamında çalışan, ESP8266 ve ESP32-C6 tabanlı cihazları merkezi bir Windows 10 PC üzerinden izleyen ve yöneten bir akıllı ev sistemi geliştirmek.
-- Ana kontrol uygulaması: **Windows 10 üzerinde çalışan Flutter/Dart tabanlı HomeDash dashboard**
-- Geliştirme yöntemi: Kod üretimi ve iterasyon için **Google Antigravity (GA)** içinde çalışan **Gemini 3.1 Pro High (ai)** kullanılarak prompt-tabanlı geliştirme
+- Kod adı: **MADAM** (Multi-Agent Device Automation Manager)
+- Amaç: Ev içi test ortamında çalışan, ESP8266 ve ESP32-C6 tabanlı cihazları merkezi bir Windows kontrol merkezi üzerinden izleyen ve yöneten bir IoT ekosistemidir.
+- Ana kontrol uygulaması: **Windows üzerinde çalışan Flutter/Dart tabanlı HomeDash dashboard**
 
 ## 2. Kısaltmalar
-- **GA**: Google Antigravity
-- **ai**: Gemini 3.1 Pro High
 - **MADAM**: HomeDash projesinin kod adı
 - **Master Node**: Ana kontrol sorumluluğu verilen ESP32-C6 düğüm
 - **Node**: Sensör / aktüatör görevli uç cihaz
@@ -22,59 +19,37 @@ Bu sistemin ilk hedefi, laboratuvar/test ortamında çalışan cihazları güven
 4. röle ve sensör senaryolarını kontrollü biçimde çalıştırmak,
 5. ileride daha büyük akıllı ev mimarisine evrilebilecek temiz bir temel oluşturmaktır.
 
-## 4. Sistem Özeti
+## 4. Sistem Özeti & Ağ Topolojisi
 - Ağ omurgası 192.168.55.x alt ağındadır.
-- ESP cihazlar statik IP ile çalışır.
-- Dashboard, Windows 10 PC üzerinde merkezi yönetim katmanıdır.
-- Cihazlar ile dashboard arasında hafif, anlaşılır ve hata ayıklaması kolay bir JSON haberleşme modeli tercih edilir.
+- **ESP8266 (192.168.55.20):** Sensör/Tetikleyici (GPIO5 -> Röle)
+- **ESP32-C6 (192.168.55.29):** Hedef Kontrolcü / Master (GPIO18 -> Röle)
+- Dashboard, Windows PC üzerinde merkezi yönetim katmanıdır.
 - İlk aşamada odak noktası: **kararlı temel altyapı**, estetikten önce **çalışan çekirdek sistem**.
 
-## 5. Tek Doğruluk Kaynağı Dosyaları
-Bu proje ilerledikçe yeni sohbetlerde önce aşağıdaki dosyalar referans alınmalıdır:
+## 5. Tek Doğruluk Kaynağı (SOT) Dosyaları
 - `00_MADAM_MASTER_CONTEXT.md` -> Projenin genel bağlamı
 - `01_MADAM_HARDWARE_AND_NETWORK_SOT.md` -> Donanım ve ağ sabitleri (değişmez kabul edilir)
-- `02_MADAM_AI_DEVELOPMENT_RULES.md` -> GA/ai için çalışma kuralları
+- `02_MADAM_AI_DEVELOPMENT_RULES.md` -> AI için çalışma kuralları
 - `03_MADAM_PHASED_ROADMAP.md` -> Faz bazlı ilerleme planı
 - `04_MADAM_PROMPT_TEMPLATES.md` -> Tekrar kullanılabilir prompt şablonları
 
-## 6. Mevcut Test Topolojisi
-Bilinen test senaryosu:
-- Bir veya daha fazla **ESP8266** düğümü sensör / aktüatör rolünde kullanılacak.
-- Bir veya daha fazla **ESP32-C6** düğümü röle / merkez kontrol görevlerinde kullanılacak.
-- Windows 10 PC, hem ağ izleme hem de dashboard arayüzü tarafında merkezi düğümdür.
-- El çizimi şemaya göre:
-  - ESP8266 tarafında PIR ve anahtar girişi düşünülüyor.
-  - ESP32-C6 tarafında birden fazla röle çıkışı planlanıyor.
-
-## 7. Yazılım Mimarisi İlkeleri
-- Flutter/Dart kodu modüler olmalı.
+## 6. Yazılım Mimarisi İlkeleri
+- **UI Katmanı Korunacaktır:** `dashboard_page.dart` ve UI bileşenleri stabildir. Sol menü, üst bar ve renk geçişlerine KESİNLİKLE dokunulmaz.
+- **M2M Logic:** Edge Trigger (Yükselen Kenar). Sadece durum OFF'tan ON'a geçtiğinde tetikleme yapılır.
 - UI ile ağ / cihaz mantığı birbirinden ayrılmalı.
-- Cihaz listesi, IP yapılandırması ve protokol sabitleri tek yerde tutulmalı.
 - Ağ hataları sessizce yutulmamalı; loglanmalı.
 - Timer, ping ve heartbeat işlemleri non-blocking olmalı.
-- Her cihaz için ileride şu katmanlar düşünülmeli:
-  - Discovery / kayıt
-  - Health monitoring
-  - Telemetry
-  - Command / control
-  - Automation rules
 
-## 8. İlk Aşama Başarı Kriteri
-İlk aşama tamamlanmış sayılabilmesi için:
-- HomeDash açılmalı,
-- cihaz listesi yüklenmeli,
-- ağdaki hedef IP'ler izlenebilmeli,
-- canlı durum (online/offline) gösterilebilmeli,
-- en az bir ESP8266 ve bir ESP32-C6 ile temel iletişim doğrulanmalıdır.
+## 7. İlk Aşama Başarı Kriteri & Mevcut Durum
+İlk aşama başarı kriterleri (cihazları ağda görme, canlı durum gösterme) sağlanmıştır. `firmware/` içindeki ESP kodları hazırdır.
 
-## 9. Kapsam Dışı Olanlar (Şimdilik)
-Aşağıdakiler ilk çekirdeğin dışında tutulmalıdır:
+**Güncel İyileştirme Backlog'u (Mimari Kararlar):**
+1. **State Yönetimi Optimizasyonu:** `dashboard_state.dart` içindeki polling işlemi `fetch` (veriyi topla) ve `commit` (state'e yaz) olarak ayrılacak (`Future.wait` darboğazını aşmak için).
+2. **Log Tamponu (Buffer):** Gereksiz UI rebuild'lerini önlemek için loglar sınırlanacak ve `notifyListeners` opsiyonel hale getirilecek.
+
+## 8. Kapsam Dışı Olanlar (Şimdilik)
 - karmaşık kullanıcı yetkilendirme
 - bulut senkronizasyonu
 - dış internet erişimi
 - ileri seviye şifreleme / üretim seviyesi güvenlik
 - otomatik OTA yaşam döngüsü
-- çok katmanlı veritabanı mimarisi
-
-## 10. Çalışma Notu
-Bu proje, önce laboratuvar gerçekliği ile uyumlu şekilde sade ve doğrulanabilir ilerlemelidir. "Mükemmel görünen ama sahada kırılan" yapı yerine, küçük ama sağlam çalışan modüller tercih edilmelidir.

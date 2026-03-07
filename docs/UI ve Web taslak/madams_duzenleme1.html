@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MADAM HomeDash - Interactive Prototype v3</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#5b13ec",
+                        "background-light": "#f8f9fb",
+                        "cockpit-green": "#00ff41",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "mono": ["JetBrains Mono", "monospace"]
+                    },
+                },
+            },
+        }
+    </script>
+    
+    <style>
+        .glass-shadow { box-shadow: 0 10px 40px -10px rgba(91, 19, 236, 0.08); }
+        .neon-glow { box-shadow: 0 0 15px rgba(91, 19, 236, 0.4); }
+        .active-gradient { background: linear-gradient(135deg, #5b13ec 0%, #06b6d4 100%); }
+        .waveform-gradient { background: linear-gradient(180deg, rgba(91,19,236,0.05) 0%, rgba(91,19,236,0) 100%); }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(91, 19, 236, 0.2); border-radius: 10px; }
+        
+        /* Tema geçişleri için yumuşak animasyon */
+        #device-grid { transition: opacity 0.3s ease-in-out; }
+    </style>
+</head>
+<body class="bg-background-light text-slate-900 font-display flex h-screen overflow-hidden antialiased">
+
+    <aside class="w-64 border-r border-slate-200 bg-white flex flex-col h-full z-20 shrink-0">
+        <div class="p-6">
+            <div class="flex items-center gap-3">
+                <div class="bg-primary w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg shadow-primary/30">
+                    <span class="material-symbols-outlined">hexagon</span>
+                </div>
+                <h1 class="text-xl font-bold tracking-tight text-slate-900">MADAM</h1>
+            </div>
+        </div>
+        <nav class="flex-1 px-4 space-y-2 py-4">
+            <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 transition-colors">
+                <span class="material-symbols-outlined">dashboard</span>
+                <span class="font-medium">Dashboard</span>
+            </a>
+            <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-xl bg-primary/10 text-primary font-bold">
+                <span class="material-symbols-outlined">memory</span>
+                <span>Stations</span>
+            </a>
+            <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 transition-colors">
+                <span class="material-symbols-outlined">auto_awesome</span>
+                <span class="font-medium">Automations</span>
+            </a>
+            <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 transition-colors">
+                <span class="material-symbols-outlined">analytics</span>
+                <span class="font-medium">Library</span>
+            </a>
+            <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-500 hover:bg-slate-50 transition-colors">
+                <span class="material-symbols-outlined">settings</span>
+                <span class="font-medium">Settings</span>
+            </a>
+        </nav>
+        
+        <div class="p-4 border-t border-slate-100">
+            <div class="flex items-center gap-3 p-3 bg-white rounded-2xl border border-slate-200 transition-all duration-300 cursor-pointer hover:border-cockpit-green hover:shadow-[0_0_15px_rgba(0,255,65,0.3)]">
+                <div class="w-10 h-10 rounded-full bg-slate-200 overflow-hidden flex items-center justify-center text-slate-400">
+                    <span class="material-symbols-outlined">person</span>
+                </div>
+                <div>
+                    <p class="text-sm font-bold text-slate-900">Madam User</p>
+                    <p class="text-[10px] text-slate-500 font-mono">v2-stable</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-full overflow-hidden">
+        
+        <header class="h-20 flex items-center justify-between px-8 bg-white/80 backdrop-blur-md border-b border-slate-200 shrink-0">
+            <div>
+                <h2 class="text-2xl font-bold text-slate-900 tracking-tight">Active Stations</h2>
+                <p class="text-slate-500 text-sm mt-0.5">Smart home devices real-time telemetry.</p>
+            </div>
+            <div class="flex gap-6 items-center">
+                <div class="flex flex-col text-right border-r border-slate-200 pr-6">
+                    <span class="text-lg font-bold text-slate-900 leading-none">10:46</span>
+                    <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">07 Mar 2026</span>
+                </div>
+                <button class="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 glass-shadow relative hover:border-primary/30 transition-all">
+                    <span class="material-symbols-outlined">notifications</span>
+                    <span class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
+                </button>
+            </div>
+        </header>
+
+        <div class="flex-1 flex gap-8 p-8 overflow-y-auto custom-scrollbar">
+            
+            <div class="w-[72%] flex flex-col min-h-0">
+                
+                <div id="device-grid" class="grid grid-cols-3 gap-6 flex-1 min-h-0">
+                    </div>
+
+                <div class="flex items-center justify-center gap-4 my-6 shrink-0">
+                    <button id="btn-prev" class="w-10 h-10 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center text-slate-600 glass-shadow transition-colors hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span class="material-symbols-outlined">chevron_left</span>
+                    </button>
+                    <span id="page-indicator" class="text-xs font-bold text-slate-400 uppercase tracking-widest">Page 1 of 4</span>
+                    <button id="btn-next" class="w-10 h-10 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center text-slate-600 glass-shadow transition-colors hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span class="material-symbols-outlined">chevron_right</span>
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-4 gap-4 mt-auto shrink-0">
+                    <div class="rounded-2xl bg-gradient-to-br from-primary to-blue-600 p-4 flex flex-col justify-between shadow-lg shadow-primary/20">
+                        <div class="w-8 h-8 rounded-lg bg-white/20 backdrop-blur-md flex items-center justify-center text-white mb-3">
+                            <span class="material-symbols-outlined text-sm">check_circle</span>
+                        </div>
+                        <div>
+                            <p class="text-white/80 text-[10px] font-medium uppercase tracking-wider">System Status</p>
+                            <h3 class="text-white text-xl font-bold leading-none mt-1">Online</h3>
+                        </div>
+                    </div>
+                    <div class="rounded-2xl bg-blue-50 p-4 flex flex-col justify-between border border-blue-100/50">
+                        <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 mb-3">
+                            <span class="material-symbols-outlined text-sm">rss_feed</span>
+                        </div>
+                        <div>
+                            <p class="text-blue-600/70 text-[10px] font-medium uppercase tracking-wider">Central Connection</p>
+                            <div class="flex items-end gap-2 mt-1">
+                                <h3 class="text-slate-900 text-xl font-bold leading-none">12.4MBps</h3>
+                                <p class="text-emerald-500 text-[10px] font-bold mb-0.5">+5%</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="rounded-2xl bg-emerald-50 p-4 flex flex-col justify-between border border-emerald-100/50">
+                        <div class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600 mb-3">
+                            <span class="material-symbols-outlined text-sm">toggle_on</span>
+                        </div>
+                        <div>
+                            <p class="text-emerald-600/70 text-[10px] font-medium uppercase tracking-wider">Active Relays</p>
+                            <h3 class="text-slate-900 text-xl font-bold leading-none mt-1">8 <span class="text-sm text-slate-400">/ 12</span></h3>
+                        </div>
+                    </div>
+                    <div class="rounded-2xl bg-orange-50 p-4 flex flex-col justify-between border border-orange-100/50">
+                        <div class="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600 mb-3">
+                            <span class="material-symbols-outlined text-sm">bolt</span>
+                        </div>
+                        <div>
+                            <p class="text-orange-600/70 text-[10px] font-medium uppercase tracking-wider">Automations</p>
+                            <div class="flex items-end gap-2 mt-1">
+                                <h3 class="text-slate-900 text-xl font-bold leading-none">4</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="w-[28%] bg-white rounded-3xl border border-slate-100 p-6 flex flex-col glass-shadow shrink-0">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-lg font-bold text-slate-900">Favorites</h2>
+                    <button class="text-primary hover:text-primary/80 transition-colors">
+                        <span class="material-symbols-outlined text-xl">star</span>
+                    </button>
+                </div>
+                <div class="flex-1 flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-2">
+                    <div class="p-3 rounded-2xl border border-slate-100 hover:border-primary/30 transition-all cursor-pointer group bg-slate-50/50">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 group-hover:text-primary transition-colors shadow-sm">
+                                <span class="material-symbols-outlined text-lg">settings_input_component</span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center justify-between">
+                                    <p class="font-bold text-sm text-slate-900 truncate">ESP32C6 Master Node</p>
+                                    <span class="w-2 h-2 rounded-full bg-cockpit-green shadow-[0_0_8px_rgba(0,255,65,0.6)] shrink-0"></span>
+                                </div>
+                                <p class="text-[10px] text-slate-400 font-mono mt-0.5">192.168.55.29</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-3 rounded-2xl border border-slate-100 hover:border-primary/30 transition-all cursor-pointer group bg-slate-50/50">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 group-hover:text-primary transition-colors shadow-sm">
+                                <span class="material-symbols-outlined text-lg">dns</span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center justify-between">
+                                    <p class="font-bold text-sm text-slate-900 truncate">ESP8266 Actuator Node</p>
+                                    <span class="w-2 h-2 rounded-full bg-cockpit-green shadow-[0_0_8px_rgba(0,255,65,0.6)] shrink-0"></span>
+                                </div>
+                                <p class="text-[10px] text-slate-400 font-mono mt-0.5">192.168.55.20</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-3 rounded-2xl border border-slate-100 transition-all cursor-pointer bg-slate-50/50 opacity-60">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-300 shadow-sm">
+                                <span class="material-symbols-outlined text-lg">cloud_off</span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center justify-between">
+                                    <p class="font-bold text-sm text-slate-600 truncate">Edge Sensor 02</p>
+                                    <span class="w-2 h-2 rounded-full bg-slate-300 shrink-0"></span>
+                                </div>
+                                <p class="text-[10px] text-slate-400 font-mono mt-0.5">192.168.55.21</p>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="w-full p-3 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 text-sm font-bold flex items-center justify-center gap-2 hover:bg-slate-50 hover:text-primary transition-colors mt-2">
+                        <span class="material-symbols-outlined text-lg">add</span> Add Device
+                    </button>
+                </div>
+                <div class="mt-6 pt-6 border-t border-slate-100 shrink-0">
+                    <div class="p-5 rounded-2xl active-gradient text-white shadow-lg shadow-primary/20 relative overflow-hidden group cursor-pointer hover:shadow-primary/40 transition-all">
+                        <div class="relative z-10">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="material-symbols-outlined text-red-400 animate-pulse">crisis_alert</span>
+                                <h4 class="font-bold text-sm">Security Alert</h4>
+                            </div>
+                            <p class="text-white/95 text-xs font-medium bg-red-500/20 py-1 px-2 rounded-lg inline-block border border-red-500/30">Motion Detected!</p>
+                            <p class="text-white/70 text-[10px] mt-3 font-mono">Zone: Outdoor Entryway</p>
+                            <p class="text-white/50 text-[10px] mt-0.5 font-mono">Time: 23:14:05</p>
+                        </div>
+                        <span class="material-symbols-outlined absolute -right-2 -bottom-4 text-7xl text-white/10 group-hover:scale-110 transition-transform">notifications_active</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // 10 Adet Sanal Cihaz Veritabanı
+        const devices = [
+            { id: 1, name: "Master Node", ip: "192.168.55.29", icon: "sensors", theme: "primary", stat1L: "Ping Latency", stat1V: "24ms", stat2L: "Net Load", stat2V: "12Mb", logs: ["[23:14:02] ENV_SENSE: Initiated", "[23:14:05] DATA: Temp 22C, Hum 45%", "[23:15:10] Syncing with Gateway..."] },
+            { id: 2, name: "Control Relay", ip: "192.168.55.21", icon: "power", theme: "slate", stat1L: "Ping Latency", stat1V: "18ms", stat2L: "State", stat2V: "Standby", logs: ["[22:00:01] Relay switched: OFF", "[22:15:00] Load check: 0W", "[23:00:01] Standby mode active"] },
+            { id: 3, name: "Actuator Node", ip: "192.168.55.20", icon: "router", theme: "cyan", stat1L: "Ping Latency", stat1V: "145ms", stat2L: "Uptime", stat2V: "14d 6h", logs: ["[23:15:44] Data stream active", "[23:15:45] MQTT Broker: Connected", "[23:15:47] Broadcast: All nodes OK"] },
+            { id: 4, name: "HVAC Controller", ip: "192.168.55.22", icon: "ac_unit", theme: "emerald", stat1L: "AC Temp", stat1V: "21°C", stat2L: "Fan Speed", stat2V: "Auto", logs: ["[18:30:00] Target Temp reached", "[19:00:00] Switched to ECO mode", "[23:00:00] Maintaining climate"] },
+            { id: 5, name: "Smart Lock", ip: "192.168.55.23", icon: "lock", theme: "slate", stat1L: "Battery", stat1V: "82%", stat2L: "State", stat2V: "Locked", logs: ["[08:15:00] Unlocked by User 1", "[08:16:30] Auto-locked (90s)", "[18:45:00] Manual lock engaged"] },
+            { id: 6, name: "Camera - Front", ip: "192.168.55.24", icon: "videocam", theme: "primary", stat1L: "Bandwidth", stat1V: "4.2 Mbps", stat2L: "Recording", stat2V: "Active", logs: ["[21:00:00] Night vision enabled", "[23:14:05] MOTION EVENT DETECTED", "[23:14:06] Alert dispatched"] },
+            { id: 7, name: "Camera - Back", ip: "192.168.55.25", icon: "videocam_off", theme: "offline", stat1L: "Status", stat1V: "Offline", stat2L: "Last Seen", stat2V: "12h ago", logs: ["[11:20:00] Connection lost", "[11:20:05] Ping timeout", "[11:25:00] Max retries reached"] },
+            { id: 8, name: "Irrigation Sys", ip: "192.168.55.26", icon: "water_drop", theme: "cyan", stat1L: "Next Run", stat1V: "06:00 AM", stat2L: "Soil Moist", stat2V: "45%", logs: ["[06:00:00] Sprinklers ON (Zone 1)", "[06:20:00] Sprinklers OFF", "[12:00:00] Moisture check: OK"] },
+            { id: 9, name: "Weather Station", ip: "192.168.55.27", icon: "air", theme: "emerald", stat1L: "Wind", stat1V: "12 km/h", stat2L: "Rain", stat2V: "0 mm", logs: ["[22:00:00] Barometric pressure drop", "[23:00:00] Sending hourly report", "[23:15:00] Syncing cloud API"] },
+            { id: 10, name: "NAS Storage", ip: "192.168.5.28", icon: "storage", theme: "primary", stat1L: "Disk Space", stat1V: "6.2 TB", stat2L: "Raid", stat2V: "Healthy", logs: ["[02:00:00] Daily backup started", "[03:45:00] Backup complete", "[14:20:00] Drive temp nominal"] }
+        ];
+
+        // Temalara göre CSS sınıfları sözlüğü
+        const themeMap = {
+            "primary": {
+                card: "bg-white border-slate-100 shadow-xl shadow-primary/20 hover:shadow-primary/40 hover:border-primary/30 opacity-100",
+                iconBg: "bg-primary/10 text-primary",
+                ip: "text-primary bg-primary/5",
+                btn: "text-white active-gradient neon-glow hover:scale-105",
+                val1: "text-primary", val2: "text-cyan-600",
+                wave: "active-gradient", logColor: "text-cockpit-green"
+            },
+            "slate": {
+                card: "bg-white/95 border-slate-100 shadow-xl shadow-slate-300/20 hover:shadow-slate-300/40 hover:border-slate-300 transition-all duration-300 opacity-95",
+                iconBg: "bg-slate-100 text-slate-500",
+                ip: "text-slate-500 bg-slate-100",
+                btn: "text-slate-400 bg-slate-100 hover:bg-slate-200",
+                val1: "text-slate-600", val2: "text-slate-600",
+                wave: "bg-slate-400", logColor: "text-slate-400"
+            },
+            "cyan": {
+                card: "bg-white border-slate-100 shadow-xl shadow-cyan-500/20 hover:shadow-cyan-500/40 hover:border-cyan-300 transition-all duration-300 opacity-100",
+                iconBg: "bg-cyan-100/50 text-cyan-600",
+                ip: "text-cyan-600 bg-cyan-50",
+                btn: "text-white bg-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.4)] hover:scale-105",
+                val1: "text-primary", val2: "text-cyan-600",
+                wave: "bg-cyan-500", logColor: "text-cockpit-green"
+            },
+            "emerald": {
+                card: "bg-white border-slate-100 shadow-xl shadow-emerald-500/20 hover:shadow-emerald-500/40 hover:border-emerald-300 transition-all duration-300 opacity-100",
+                iconBg: "bg-emerald-100/50 text-emerald-600",
+                ip: "text-emerald-600 bg-emerald-50",
+                btn: "text-white bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)] hover:scale-105",
+                val1: "text-emerald-600", val2: "text-slate-600",
+                wave: "bg-emerald-500", logColor: "text-cockpit-green"
+            },
+            "offline": {
+                card: "bg-slate-50 border-slate-200 shadow-none opacity-60 grayscale hover:grayscale-0 transition-all duration-500",
+                iconBg: "bg-slate-200 text-slate-400",
+                ip: "text-slate-400 bg-slate-200",
+                btn: "text-slate-300 bg-slate-200",
+                val1: "text-red-400", val2: "text-slate-400",
+                wave: "bg-slate-300", logColor: "text-red-400"
+            }
+        };
+
+        const itemsPerPage = 3;
+        let currentPage = 1;
+        const totalPages = Math.ceil(devices.length / itemsPerPage);
+
+        function renderCards() {
+            const grid = document.getElementById("device-grid");
+            const pageIndicator = document.getElementById("page-indicator");
+            const btnPrev = document.getElementById("btn-prev");
+            const btnNext = document.getElementById("btn-next");
+
+            // Animasyon için opacity sıfırla
+            grid.style.opacity = 0;
+
+            setTimeout(() => {
+                grid.innerHTML = "";
+                const start = (currentPage - 1) * itemsPerPage;
+                const end = start + itemsPerPage;
+                const currentDevices = devices.slice(start, end);
+
+                currentDevices.forEach(device => {
+                    const t = themeMap[device.theme];
+                    
+                    // Sahte logları HTML'e dök
+                    const logHtml = device.logs.map(log => `<p>${log}</p>`).join("");
+                    const pulseHtml = device.theme !== "offline" ? `<p class="animate-pulse mt-1">> _ Awaiting...</p>` : "";
+
+                    const cardHtml = `
+                    <div class="rounded-2xl border flex flex-col overflow-hidden transition-all duration-300 ${t.card}">
+                        <div class="p-4 flex justify-between items-start">
+                            <div class="flex gap-3">
+                                <div class="p-2 rounded-xl ${t.iconBg}">
+                                    <span class="material-symbols-outlined text-xl">${device.icon}</span>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-slate-900 leading-tight">${device.name}</h3>
+                                    <p class="font-mono text-[10px] px-1.5 py-0.5 rounded mt-1 inline-block ${t.ip}">${device.ip}</p>
+                                </div>
+                            </div>
+                            <button class="w-8 h-8 rounded-full flex items-center justify-center transition-transform ${t.btn}">
+                                <span class="material-symbols-outlined font-bold text-lg">power_settings_new</span>
+                            </button>
+                        </div>
+                        <div class="px-4 mb-3">
+                            <div class="flex gap-1 bg-slate-50 p-1 rounded-xl border border-slate-100">
+                                <button class="flex-1 text-[10px] font-bold py-1.5 rounded-lg bg-white shadow-sm text-primary">USAGE</button>
+                                <button class="flex-1 text-[10px] font-bold py-1.5 rounded-lg text-slate-400 hover:text-slate-600">DEVICE</button>
+                                <button class="flex-1 text-[10px] font-bold py-1.5 rounded-lg text-slate-400 hover:text-slate-600">SETTING</button>
+                            </div>
+                        </div>
+                        <div class="flex-1 px-4 relative flex flex-col justify-between ${device.theme === 'primary' ? 'waveform-gradient' : ''}">
+                            <div class="flex justify-between relative z-10 pt-2">
+                                <div class="flex flex-col">
+                                    <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">${device.stat1L}</span>
+                                    <span class="text-lg font-mono font-bold ${t.val1}">${device.stat1V}</span>
+                                </div>
+                                <div class="flex flex-col text-right">
+                                    <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">${device.stat2L}</span>
+                                    <span class="text-lg font-mono font-bold ${t.val2}">${device.stat2V}</span>
+                                </div>
+                            </div>
+                            <div class="h-20 flex items-end justify-between gap-1 opacity-80 pb-2 mt-4">
+                                <div class="w-full ${t.wave} rounded-t-sm opacity-30 h-[30%]"></div>
+                                <div class="w-full ${t.wave} rounded-t-sm opacity-50 h-[50%]"></div>
+                                <div class="w-full ${t.wave} rounded-t-sm opacity-80 h-[80%]"></div>
+                                <div class="w-full ${t.wave} rounded-t-sm opacity-40 h-[40%]"></div>
+                                <div class="w-full ${t.wave} rounded-t-sm opacity-20 h-[20%]"></div>
+                                <div class="w-full ${t.wave} rounded-t-sm opacity-60 h-[70%]"></div>
+                                <div class="w-full ${t.wave} rounded-t-sm opacity-90 h-[90%]"></div>
+                                <div class="w-full ${t.wave} rounded-t-sm opacity-40 h-[50%]"></div>
+                            </div>
+                        </div>
+                        <div class="bg-slate-900 p-4 shrink-0">
+                            <div class="font-mono text-[10px] h-20 overflow-y-auto custom-scrollbar leading-relaxed ${t.logColor}">
+                                ${logHtml}
+                                ${pulseHtml}
+                            </div>
+                        </div>
+                    </div>
+                    `;
+                    grid.innerHTML += cardHtml;
+                });
+
+                // Sayfa metnini ve buton durumlarını güncelle
+                pageIndicator.innerText = `Page ${currentPage} of ${totalPages}`;
+                btnPrev.disabled = currentPage === 1;
+                btnNext.disabled = currentPage === totalPages;
+
+                // Animasyon ile görünür yap
+                grid.style.opacity = 1;
+
+            }, 300); // 300ms transition süresi
+        }
+
+        // Event Listeners
+        document.getElementById("btn-prev").addEventListener("click", () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderCards();
+            }
+        });
+
+        document.getElementById("btn-next").addEventListener("click", () => {
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderCards();
+            }
+        });
+
+        // İlk yükleme
+        renderCards();
+
+    </script>
+</body>
+</html>

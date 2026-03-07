@@ -35,11 +35,19 @@ class DashboardState extends ChangeNotifier {
     initializeDashboard();
   }
 
-  void addLog(String message) {
+  // --- GÖREV 1: Log Tamponu ve Opsiyonel Bildirim ---
+  void addLog(String message, {bool notify = true}) {
     final timeStr = DateTime.now().toIso8601String().substring(11, 19);
     logs.insert(0, '[$timeStr] $message');
-    if (logs.length > 50) logs.removeLast(); // Log kapasitesini artırdık
-    notifyListeners();
+
+    // Log kapasitesini sınırlayarak bellek sızıntısını (memory leak) önlüyoruz
+    if (logs.length > 50) {
+      logs.removeLast();
+    }
+
+    if (notify) {
+      notifyListeners();
+    }
   }
 
   void initializeDashboard() {
@@ -71,7 +79,31 @@ class DashboardState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Tüm ağı tarayan ana asenkron metod
+  // --- GÖREV 2: FETCH FAZI İÇİN YARDIMCI FONKSİYON ---
+  Future<Map<String, dynamic>> _scanDevice(DeviceInfo device) async {
+    int currentLatency = 0;
+    DeviceStatus currentStatus = DeviceStatus(isOnline: false);
+
+    try {
+      final pingResult = await _pingService.pingDevice(device.ip);
+      currentLatency = pingResult.rttMs;
+
+      if (pingResult.isSuccess) {
+        currentStatus = await _commandService.getDeviceStatus(device.ip);
+      }
+    } catch (e) {
+      // Olası bir hata anında sessiz log atıyoruz
+      addLog('Hata (${device.ip}): Bağlantı sorunu.', notify: false);
+    }
+
+    return {
+      'ip': device.ip,
+      'latency': currentLatency,
+      'status': currentStatus,
+    };
+  }
+
+  // --- GÖREV 2: ANA TARAMA FONKSİYONU (FETCH/COMMIT MİMARİSİ) ---
   Future<void> _scanAllDevices() async {
     if (_isShuttingDown || isScanning) return;
     isScanning = true;
@@ -79,21 +111,21 @@ class DashboardState extends ChangeNotifier {
 
     int onlineCount = 0;
 
-    // Tüm cihazlara paralel olarak durum sorgusu atılır
-    final futures = devices.map((device) async {
-      final pingResult = await _pingService.pingDevice(device.ip);
-      pingLatencies[device.ip] = pingResult.rttMs;
+    // FETCH FAZI: Paralel ağ istekleri, state'e yazmadan veriyi topla
+    final futures = devices.map((device) => _scanDevice(device)).toList();
+    final results = await Future.wait(futures);
 
-      if (pingResult.isSuccess) {
-        final statusResult = await _commandService.getDeviceStatus(device.ip);
-        deviceStatuses[device.ip] = statusResult;
-        if (statusResult.isOnline) onlineCount++;
-      } else {
-        deviceStatuses[device.ip] = DeviceStatus(isOnline: false);
-      }
-    }).toList();
+    // COMMIT FAZI: Toplanan sonuçları tek seferde ve güvenli bir şekilde state'e yaz
+    for (var result in results) {
+      final ip = result['ip'] as String;
+      final latency = result['latency'] as int;
+      final status = result['status'] as DeviceStatus;
 
-    await Future.wait(futures);
+      pingLatencies[ip] = latency;
+      deviceStatuses[ip] = status;
+
+      if (status.isOnline) onlineCount++;
+    }
 
     // TARAMA SONRASI OTOMASYON KONTROLÜ
     await _checkAutomationLogic();
@@ -101,6 +133,8 @@ class DashboardState extends ChangeNotifier {
     isScanning = false;
     lastScanTime = DateTime.now();
     statusMessage = 'Tarama bitti. $onlineCount cihaz aktif.';
+
+    // TEKİL BİLDİRİM: Tüm işlemler bittikten sonra arayüzü sadece 1 kez güncelle
     notifyListeners();
   }
 
@@ -121,7 +155,11 @@ class DashboardState extends ChangeNotifier {
       // --- EDGE TRIGGER MANTIĞI ---
       // Eğer durum OFF'tan ON'a geçtiyse (Yani anahtar yeni kapandıysa/hareket algılandıysa)
       if (currentState == "on" && _lastSensorState == "off") {
-        addLog('OTOMASYON: $sensorIp tetiklendi! Hedef (.29) güncelleniyor.');
+        // Sessiz loglama kullanıyoruz ki arayüz hemen titremesin
+        addLog(
+          'OTOMASYON: $sensorIp tetiklendi! Hedef (.29) güncelleniyor.',
+          notify: false,
+        );
 
         if (targetStatus != null && targetStatus.isOnline) {
           bool success = await _commandService.sendCommand(relayIp, {
@@ -131,12 +169,15 @@ class DashboardState extends ChangeNotifier {
           });
 
           if (success) {
-            addLog('OTOMASYON BAŞARILI: M2M komutu uygulandi.');
+            addLog('OTOMASYON BAŞARILI: M2M komutu uygulandı.', notify: false);
           } else {
-            addLog('HATA: Otomasyon komutu iletilemedi.');
+            addLog('HATA: Otomasyon komutu iletilemedi.', notify: false);
           }
         } else {
-          addLog('UYARI: Hedef cihaz (.29) offline, otomasyon atlandi.');
+          addLog(
+            'UYARI: Hedef cihaz (.29) offline, otomasyon atlandı.',
+            notify: false,
+          );
         }
       }
 

@@ -1,7 +1,8 @@
-/// MADAM Projesi - Gelişmiş Cihaz Listesi ve Kontrol Paneli
+/// MADAM Projesi - Modern Cihaz Kartlari ve Kontrol Paneli
 import 'package:flutter/material.dart';
 import '../state/dashboard_state.dart';
 import '../services/device_command_service.dart';
+import 'device_waveform_chart.dart';
 
 class DeviceTable extends StatelessWidget {
   final DashboardState state;
@@ -18,7 +19,7 @@ class DeviceTable extends StatelessWidget {
             Icon(Icons.devices_other, size: 64, color: Colors.grey),
             SizedBox(height: 16),
             Text(
-              'Kayıtlı cihaz bulunamadı.',
+              'Kayitli cihaz bulunamadi.',
               style: TextStyle(color: Colors.grey),
             ),
           ],
@@ -26,180 +27,317 @@ class DeviceTable extends StatelessWidget {
       );
     }
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.vertical,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: WidgetStateProperty.resolveWith(
-            (states) => Colors.blueGrey[50],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        int crossAxisCount = 1;
+
+        if (width >= 1400) {
+          crossAxisCount = 4;
+        } else if (width >= 1000) {
+          crossAxisCount = 3;
+        } else if (width >= 680) {
+          crossAxisCount = 2;
+        }
+
+        return GridView.builder(
+          padding: const EdgeInsets.all(20),
+          itemCount: state.devices.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: 18,
+            mainAxisSpacing: 18,
+            childAspectRatio: width >= 1000 ? 1.34 : 1.18,
           ),
-          horizontalMargin: 20,
-          columnSpacing: 35,
-          columns: const [
-            DataColumn(
-              label: Text(
-                'Tip/ID',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                'IP Adresi',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                'Ağ Durumu',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                'Ping',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                'Röle 1 Durumu',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                'Hızlı Kontrol',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-            DataColumn(
-              label: Text(
-                'Detaylar',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-          rows: state.devices.map((device) {
+          itemBuilder: (context, index) {
+            final device = state.devices[index];
             final status = state.deviceStatuses[device.ip];
             final isOnline = status?.isOnline ?? false;
             final relay1Active = status?.isRelayActive('relay_1') ?? false;
+            final pingMs = state.pingLatencies[device.ip] ?? 0;
 
-            // Rol bazlı ikon seçimi
-            IconData deviceIcon = Icons.developer_board;
-            if (device.role == 'relay_node') deviceIcon = Icons.sensors;
-            if (device.role == 'primary_controller')
-              deviceIcon = Icons.lightbulb_outline;
+            IconData deviceIcon = Icons.developer_board_rounded;
+            if (device.role == 'relay_node') {
+              deviceIcon = Icons.sensors_rounded;
+            }
+            if (device.role == 'primary_controller') {
+              deviceIcon = Icons.lightbulb_outline_rounded;
+            }
 
-            return DataRow(
-              cells: [
-                // 1. Cihaz ID ve İkon
-                DataCell(
-                  Row(
+            return Opacity(
+              opacity: isOnline ? 1.0 : 0.6,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.92),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isOnline
+                        ? const Color(0x145B13EC)
+                        : const Color(0x12000000),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF5B13EC).withOpacity(0.08),
+                      blurRadius: 24,
+                      offset: const Offset(0, 10),
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        deviceIcon,
-                        size: 20,
-                        color: isOnline ? Colors.blue : Colors.grey,
+                      _buildCardHeader(
+                        isOnline: isOnline,
+                        deviceIcon: deviceIcon,
+                        deviceId: device.id,
+                        deviceIp: device.ip,
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        device.id,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      const SizedBox(height: 16),
+                      _buildTelemetrySection(
+                        pingMs: pingMs,
+                        isOnline: isOnline,
+                      ),
+                      const Spacer(),
+                      _buildControlRow(
+                        context: context,
+                        isOnline: isOnline,
+                        relay1Active: relay1Active,
+                        ip: device.ip,
+                        device: device,
+                        status: status,
                       ),
                     ],
                   ),
                 ),
-                // 2. IP Adresi
-                DataCell(
-                  Text(
-                    device.ip,
-                    style: const TextStyle(fontFamily: 'Courier'),
-                  ),
-                ),
-                // 3. Online/Offline Badge
-                DataCell(_buildStatusBadge(isOnline)),
-                // 4. Ping Gecikmesi
-                DataCell(
-                  Text(
-                    isOnline ? '${state.pingLatencies[device.ip]} ms' : '--',
-                    style: TextStyle(
-                      color: _getLatencyColor(
-                        state.pingLatencies[device.ip] ?? 0,
-                      ),
-                    ),
-                  ),
-                ),
-                // 5. Canlı Röle Durumu (ESP'den gelen gerçek veri)
-                DataCell(
-                  isOnline
-                      ? Icon(
-                          relay1Active ? Icons.flash_on : Icons.flash_off,
-                          color: relay1Active ? Colors.orange : Colors.grey,
-                        )
-                      : const Text("-"),
-                ),
-                // 6. Hızlı Kontrol Switch
-                DataCell(
-                  isOnline
-                      ? Switch(
-                          value: relay1Active,
-                          activeColor: Colors.orange,
-                          onChanged: (val) => _handleToggle(context, device.ip),
-                        )
-                      : const Text("Erişilemez"),
-                ),
-                // 7. Detay Dialog Butonu
-                DataCell(
-                  IconButton(
-                    icon: const Icon(Icons.analytics_outlined),
-                    onPressed: () => _showDeviceDetailsDialog(
-                      context,
-                      device,
-                      status,
-                      isOnline,
-                    ),
-                  ),
-                ),
-              ],
+              ),
             );
-          }).toList(),
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildCardHeader({
+    required bool isOnline,
+    required IconData deviceIcon,
+    required String deviceId,
+    required String deviceIp,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            gradient: const LinearGradient(
+              colors: [Color(0xFF5B13EC), Color(0xFF7C4DFF)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF5B13EC).withOpacity(0.22),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Icon(deviceIcon, color: Colors.white, size: 24),
         ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                deviceId,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1F1A33),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5F2FF),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  deviceIp,
+                  style: const TextStyle(
+                    fontFamily: 'Courier',
+                    fontSize: 12,
+                    color: Color(0xFF4B3E77),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        _buildStatusBadge(isOnline),
+      ],
+    );
+  }
+
+  Widget _buildTelemetrySection({required int pingMs, required bool isOnline}) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F8FC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0x11000000)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                'Ping',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF7B748F),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                isOnline ? '$pingMs ms' : '--',
+                style: TextStyle(
+                  color: _getLatencyColor(pingMs),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          DeviceWaveformChart(
+            samples: _buildWaveformSamples(pingMs),
+            height: 40,
+            barWidth: 6,
+            spacing: 4,
+          ),
+        ],
       ),
     );
   }
 
-  // Durum Rozeti Oluşturucu
-  Widget _buildStatusBadge(bool isOnline) {
+  Widget _buildControlRow({
+    required BuildContext context,
+    required bool isOnline,
+    required bool relay1Active,
+    required String ip,
+    required dynamic device,
+    required dynamic status,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: isOnline
-            ? Colors.green.withOpacity(0.1)
-            : Colors.red.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isOnline ? Colors.green : Colors.red,
-          width: 0.5,
-        ),
+        color: const Color(0xFFFDFDFF),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0x12000000)),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          CircleAvatar(
-            radius: 4,
-            backgroundColor: isOnline ? Colors.green : Colors.red,
+          Expanded(
+            child: Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: relay1Active
+                        ? Colors.orange.withOpacity(0.14)
+                        : Colors.grey.withOpacity(0.10),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    relay1Active
+                        ? Icons.flash_on_rounded
+                        : Icons.flash_off_rounded,
+                    color: relay1Active ? Colors.orange : Colors.grey,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    'Role 1',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF2B2640),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(width: 6),
-          Text(
-            isOnline ? 'ONLINE' : 'OFFLINE',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: isOnline ? Colors.green[700] : Colors.red[700],
+          Switch(
+            value: isOnline ? relay1Active : false,
+            activeColor: Colors.orange,
+            onChanged: isOnline ? (val) => _handleToggle(context, ip) : null,
+          ),
+          Container(
+            margin: const EdgeInsets.only(left: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF3F0FF),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: IconButton(
+              icon: const Icon(
+                Icons.analytics_outlined,
+                color: Color(0xFF5B13EC),
+              ),
+              onPressed: () =>
+                  _showDeviceDetailsDialog(context, device, status, isOnline),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge(bool isOnline) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: isOnline
+            ? Colors.green.withOpacity(0.10)
+            : Colors.red.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: isOnline ? Colors.green : Colors.red,
+          width: 0.8,
+        ),
+      ),
+      child: Text(
+        isOnline ? 'ONLINE' : 'OFFLINE',
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.8,
+          color: isOnline ? Colors.green[700] : Colors.red[700],
+        ),
       ),
     );
   }
@@ -209,6 +347,16 @@ class DeviceTable extends StatelessWidget {
     if (ms < 50) return Colors.green;
     if (ms < 150) return Colors.orange;
     return Colors.red;
+  }
+
+  List<double> _buildWaveformSamples(int pingMs) {
+    final base = pingMs <= 0 ? 18 : pingMs;
+    return [
+      (base - 10).clamp(4, 999).toDouble(),
+      base.clamp(4, 999).toDouble(),
+      (base + 5).clamp(4, 999).toDouble(),
+      (base - 2).clamp(4, 999).toDouble(),
+    ];
   }
 
   Future<void> _handleToggle(BuildContext context, String ip) async {
@@ -229,7 +377,6 @@ class DeviceTable extends StatelessWidget {
     );
   }
 
-  // Mevcut dialog metodunuzu optimize edilmiş haliyle koruyoruz
   void _showDeviceDetailsDialog(
     BuildContext context,
     dynamic device,
@@ -247,7 +394,7 @@ class DeviceTable extends StatelessWidget {
             Text('IP: ${device.ip}'),
             Text('Rol: ${device.role}'),
             const Divider(),
-            Text(
+            const Text(
               'Ham JSON Verisi:',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
