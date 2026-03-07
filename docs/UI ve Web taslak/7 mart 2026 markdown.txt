@@ -1,0 +1,31 @@
+MADAM Project - Session Handover & State Report
+Date: 07 Mar 2026 | Status: v2-stable-active | Tier Transition: Pending Pro
+
+🛠️ Mevcut Teknik Mimari
+Şu an projenin kalbi olan dashboard_page.dart üzerinde aşağıdaki yapılar kurulmuştur:
+
+Real-time UI: Timer.periodic ile saniye saniye güncellenen dinamik üst header (saat/tarih).
+
+State Management: Provider deseniyle cihaz durumları (deviceStatuses), log akışı ve polling döngüsü yönetiliyor.
+
+Layout: Sidebar (Sol), Dashboard (Orta) ve Security/Favorites (Sağ) şeklinde 3 ana sütunlu modern arayüz.
+
+Edge Monitoring: İstasyonlardan gelen ping ve röle durumları DeviceTable ve SummaryCards üzerinden anlık izleniyor.
+
+📋 Son Uygulanan Değişiklikler
+_TopHeader sınıfı StatefulWidget'a dönüştürüldü.
+
+dart:async kütüphanesi entegre edildi ve bellek sızıntısını önlemek için dispose metodunda timer temizliği sağlandı.
+
+Sistem logları paneli (_SystemLogsPanel) gerçek zamanlı veri akışını simüle edecek/gösterecek şekilde optimize edildi.
+
+🚀 Bir Sonraki Adımlar (Pro Başlangıç Ajandası)
+Pro yetenekleri açıldığında odaklanacağımız kritik modüller:
+
+Dinamik Telemetri Grafikleri: İstasyonların gecikme (latency) sürelerini görselleştirecek çizgi grafiklerin entegrasyonu.
+
+Veritabanı Entegrasyonu: SQLite veya semantik bir veritabanı ile geçmiş logların kalıcı hale getirilmesi.
+
+Gelişmiş Alarm Yönetimi: Sağ paneldeki "Security Alert" kartının gerçek sensor verileriyle tetiklenmesi.
+
+Kod Refactoring: UI bileşenlerinin daha atomik hale getirilmesi (Widget separation).

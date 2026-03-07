@@ -1,4 +1,5 @@
-/// MADAM Projesi - Modern App Shell (Sidebar + Top Header)
+/// MADAM Projesi - Modern App Shell (Sidebar + Top Header + Right Panel + Real-time Clock)
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../widgets/device_table.dart';
@@ -26,10 +27,32 @@ class _DashboardPageState extends State<DashboardPage> {
               children: [
                 _TopHeader(state: dashboardState),
                 Expanded(
-                  child: Container(
-                    color: const Color(0xFFF5F7FC),
+                  child: Padding(
                     padding: const EdgeInsets.all(20),
-                    child: DeviceTable(state: dashboardState),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF5F7FC),
+                                    borderRadius: BorderRadius.circular(24),
+                                  ),
+                                  child: DeviceTable(state: dashboardState),
+                                ),
+                              ),
+                              const SizedBox(height: 18),
+                              _SummaryCardsSection(state: dashboardState),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        _RightPanel(state: dashboardState),
+                      ],
+                    ),
                   ),
                 ),
                 _SystemLogsPanel(state: dashboardState),
@@ -252,10 +275,62 @@ class _SidebarProfile extends StatelessWidget {
   }
 }
 
-class _TopHeader extends StatelessWidget {
+// YENİ EKLENEN CANLI SAAT WIDGET'I (STATEFUL)
+class _TopHeader extends StatefulWidget {
   final DashboardState state;
 
   const _TopHeader({required this.state});
+
+  @override
+  State<_TopHeader> createState() => _TopHeaderState();
+}
+
+class _TopHeaderState extends State<_TopHeader> {
+  late Timer _clockTimer;
+  late DateTime _now;
+
+  @override
+  void initState() {
+    super.initState();
+    _now = DateTime.now();
+    _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() {
+        _now = DateTime.now();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _clockTimer.cancel();
+    super.dispose();
+  }
+
+  String _formatNow(DateTime value) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    final day = value.day.toString().padLeft(2, '0');
+    final month = months[value.month - 1];
+    final year = value.year.toString();
+
+    return '$hour:$minute, $day $month $year';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -288,8 +363,7 @@ class _TopHeader extends StatelessWidget {
             ],
           ),
           const Spacer(),
-          // OTOMASYON VE DÖNGÜ KONTROLLERİ
-          if (state.isPolling)
+          if (widget.state.isPolling)
             Row(
               children: [
                 const Text(
@@ -311,7 +385,7 @@ class _TopHeader extends StatelessWidget {
                   ),
                   icon: const Icon(Icons.stop),
                   label: const Text('Durdur'),
-                  onPressed: state.stopPingLoop,
+                  onPressed: widget.state.stopPingLoop,
                 ),
               ],
             )
@@ -327,7 +401,7 @@ class _TopHeader extends StatelessWidget {
               ),
               icon: const Icon(Icons.play_arrow),
               label: const Text('Başlat'),
-              onPressed: state.startPingLoop,
+              onPressed: widget.state.startPingLoop,
             ),
           const SizedBox(width: 12),
           OutlinedButton.icon(
@@ -340,20 +414,19 @@ class _TopHeader extends StatelessWidget {
             ),
             icon: const Icon(Icons.exit_to_app),
             label: const Text('Çıkış'),
-            onPressed: state.gracefulShutdownAndExit,
+            onPressed: widget.state.gracefulShutdownAndExit,
           ),
           const SizedBox(width: 24),
-          // Saat Bilgisi
-          const Text(
-            '11:06, 07 Mar 2026',
-            style: TextStyle(
+          // CANLI SAAT METNİ
+          Text(
+            _formatNow(_now),
+            style: const TextStyle(
               color: Color(0xFF6B7280),
               fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(width: 16),
-          // Bildirim İkonu
           Stack(
             clipBehavior: Clip.none,
             children: [
@@ -400,6 +473,347 @@ class _TopHeader extends StatelessWidget {
               Icons.person_rounded,
               color: Colors.white,
               size: 22,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryCardsSection extends StatelessWidget {
+  final DashboardState state;
+
+  const _SummaryCardsSection({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final onlineCount = state.deviceStatuses.values
+        .where((s) => s.isOnline)
+        .length;
+    final relayCount = state.deviceStatuses.values
+        .where((s) => s.isOnline && s.isRelayActive('relay_1'))
+        .length;
+    final automationState = state.isPolling ? 'Running' : 'Idle';
+    final systemState = onlineCount > 0 ? 'Nominal' : 'Offline';
+
+    return SizedBox(
+      height: 118,
+      child: Row(
+        children: [
+          Expanded(
+            child: _SummaryCard(
+              title: 'System Status',
+              value: systemState,
+              subtitle: '$onlineCount active nodes',
+              icon: Icons.memory_rounded,
+              colors: const [Color(0xFF5B13EC), Color(0xFF8B5CFF)],
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: _SummaryCard(
+              title: 'Central Connection',
+              value: onlineCount > 0 ? 'Stable' : 'Down',
+              subtitle: 'Master link monitor',
+              icon: Icons.hub_rounded,
+              colors: const [Color(0xFF2563EB), Color(0xFF60A5FA)],
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: _SummaryCard(
+              title: 'Active Relays',
+              value: '$relayCount',
+              subtitle: 'Relay_1 outputs online',
+              icon: Icons.flash_on_rounded,
+              colors: const [Color(0xFF059669), Color(0xFF34D399)],
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: _SummaryCard(
+              title: 'Automations',
+              value: automationState,
+              subtitle: 'Polling-driven edge rules',
+              icon: Icons.auto_mode_rounded,
+              colors: const [Color(0xFFEA580C), Color(0xFFF59E0B)],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final String subtitle;
+  final IconData icon;
+  final List<Color> colors;
+
+  const _SummaryCard({
+    required this.title,
+    required this.value,
+    required this.subtitle,
+    required this.icon,
+    required this.colors,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: colors,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: colors.first.withOpacity(0.28),
+            blurRadius: 22,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.16),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: Colors.white),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white70, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RightPanel extends StatelessWidget {
+  final DashboardState state;
+
+  const _RightPanel({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 300,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.96),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 28,
+            offset: const Offset(0, 14),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.star_rounded, color: Color(0xFFF59E0B)),
+              SizedBox(width: 8),
+              Text(
+                'Favorites',
+                style: TextStyle(
+                  color: Color(0xFF161A2D),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          const _FavoriteTile(
+            title: 'ESP32C6 Master Node',
+            subtitle: '192.168.55.29',
+            icon: Icons.router_rounded,
+            accent: Color(0xFF5B13EC),
+          ),
+          const SizedBox(height: 12),
+          const _FavoriteTile(
+            title: 'ESP8266 Actuator Node',
+            subtitle: '192.168.55.20',
+            icon: Icons.memory_rounded,
+            accent: Color(0xFF2563EB),
+          ),
+          const SizedBox(height: 12),
+          const _FavoriteTile(
+            title: 'Relay Channel Monitor',
+            subtitle: 'Live control surface',
+            icon: Icons.flash_on_rounded,
+            accent: Color(0xFF059669),
+          ),
+          const Spacer(),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF7F1D1D), Color(0xFFEF4444)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFEF4444).withOpacity(0.38),
+                  blurRadius: 28,
+                  spreadRadius: 2,
+                  offset: const Offset(0, 12),
+                ),
+              ],
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.sensors_rounded, color: Colors.white),
+                    SizedBox(width: 8),
+                    Text(
+                      'Security Alert',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 14),
+                Text(
+                  'Motion Detected',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'PIR source triggered in the monitored zone. Review recent station activity and logs.',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FavoriteTile extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color accent;
+
+  const _FavoriteTile({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F8FC),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: accent.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: accent),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF161A2D),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF8A90A2),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
