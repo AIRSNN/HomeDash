@@ -325,11 +325,20 @@ class _DeckSimpleHeader extends StatelessWidget {
   }
 }
 
-class _PrototypeDeviceCard extends StatelessWidget {
+enum _DeviceCardTab { usage, device, setting }
+
+class _PrototypeDeviceCard extends StatefulWidget {
   final DashboardState state;
   final DeviceInfo device;
 
   const _PrototypeDeviceCard({required this.state, required this.device});
+
+  @override
+  State<_PrototypeDeviceCard> createState() => _PrototypeDeviceCardState();
+}
+
+class _PrototypeDeviceCardState extends State<_PrototypeDeviceCard> {
+  _DeviceCardTab _activeTab = _DeviceCardTab.usage;
 
   Future<void> _confirmReboot(BuildContext context, String ip) async {
     final confirm = await showDialog<bool>(
@@ -340,11 +349,11 @@ class _PrototypeDeviceCard extends StatelessWidget {
           children: [
             const Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
             const SizedBox(width: 8),
-            Text('Sistemi Reboot Et', style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 18)),
+            Text('Cihazı Yeniden Başlat', style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 18)),
           ],
         ),
         content: Text(
-          '$ip adresli cihazı yeniden başlatmak istediğinize emin misiniz?\nGeçici bağlantı kopukluğu yaşanacaktır.',
+          '$ip adresli cihaz yeniden başlatılsın mı?\nGeçici bağlantı kesintisi olabilir.',
           style: GoogleFonts.inter(fontSize: 14),
         ),
         actions: [
@@ -359,14 +368,14 @@ class _PrototypeDeviceCard extends StatelessWidget {
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            child: Text('Reboot', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+            child: Text('Yeniden Başlat', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
 
     if (confirm == true) {
-      state.rebootDevice(ip);
+      widget.state.rebootDevice(ip);
     }
   }
 
@@ -374,13 +383,13 @@ class _PrototypeDeviceCard extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('${device.id} Teknik Analiz'),
+        title: Text('${widget.device.id} Teknik Analiz'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('IP: ${device.ip}'),
-            Text('Rol: ${device.role}'),
+            Text('IP: ${widget.device.ip}'),
+            Text('Rol: ${widget.device.role}'),
             Text('Durum: ${isOnline ? 'Online' : 'Offline'}'),
             const Divider(),
             const Text('Ham JSON Verisi:', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -406,25 +415,308 @@ class _PrototypeDeviceCard extends StatelessWidget {
     );
   }
 
+  String _readMacAddress(dynamic status) {
+    final rawData = status?.rawData;
+    if (rawData is Map) {
+      const keys = ['mac', 'macAddress', 'mac_address', 'wifiMac', 'wifi_mac', 'staMac', 'sta_mac'];
+      for (final key in keys) {
+        final value = rawData[key];
+        if (value is String && value.trim().isNotEmpty) {
+          return value.trim();
+        }
+      }
+    }
+    return '--:--:--:--:--:--';
+  }
+
+  String _derivePingOrder(String ip) {
+    final parts = ip.split('.');
+    if (parts.isEmpty) return '--';
+    final last = int.tryParse(parts.last);
+    if (last == null) return '--';
+    return '#$last';
+  }
+
+  Widget _buildUsageContent({
+    required bool compact,
+    required bool isOnline,
+    required int pingMs,
+    required dynamic status,
+  }) {
+    return Column(
+      key: const ValueKey(_DeviceCardTab.usage),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _MetricTile(
+              label: 'PING LATENCY',
+              value: isOnline ? '${pingMs}ms' : '--',
+              accent: const Color(0xFF5B13EC),
+              compact: compact,
+              isLeft: true,
+            ),
+            _MetricTile(
+              label: 'STATE',
+              value: isOnline ? 'Online' : 'Offline',
+              accent: isOnline ? const Color(0xFF00FF41) : const Color(0xFF94A3B8),
+              compact: compact,
+              isLeft: false,
+            ),
+          ],
+        ),
+        SizedBox(height: compact ? 12 : 16),
+        SizedBox(
+          height: compact ? 48 : 54,
+          child: Row(
+            children: [
+              if (widget.device.role.contains('primary')) ...[
+                Expanded(
+                  child: _RelayControlTile(
+                    label: 'CH 1',
+                    isActive: status?.isRelayActive('relay_1') ?? false,
+                    isOnline: isOnline,
+                    onTap: () => widget.state.toggleRelay(widget.device.ip, 'relay_1'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _RelayControlTile(
+                    label: 'CH 2',
+                    isActive: status?.isRelayActive('relay_2') ?? false,
+                    isOnline: isOnline,
+                    onTap: () => widget.state.toggleRelay(widget.device.ip, 'relay_2'),
+                  ),
+                ),
+              ] else ...[
+                Expanded(
+                  child: _RelayControlTile(
+                    label: 'Röle',
+                    isActive: status?.isRelayActive('relay_1') ?? false,
+                    isOnline: isOnline,
+                    onTap: () => widget.state.toggleRelay(widget.device.ip, 'relay_1'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(child: _TempSensorTile(status: status, isOnline: isOnline)),
+                const SizedBox(width: 8),
+                Expanded(child: _MotionSensorTile(status: status, isOnline: isOnline)),
+              ]
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDeviceContent({
+    required bool compact,
+    required bool isOnline,
+    required dynamic status,
+  }) {
+    final macAddress = _readMacAddress(status);
+    final relay1Active = status?.isRelayActive('relay_1') ?? false;
+    final relay2Active = status?.isRelayActive('relay_2') ?? false;
+    final pir1Detected = status?.motionStatus == 'detected';
+
+    return Column(
+      key: const ValueKey(_DeviceCardTab.device),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(compact ? 10 : 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8F9FB),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _DeviceInfoPill(
+                label: 'CARD',
+                value: widget.device.id,
+                icon: Icons.badge_rounded,
+                compact: compact,
+              ),
+              _DeviceInfoPill(
+                label: 'PING ORDER',
+                value: _derivePingOrder(widget.device.ip),
+                icon: Icons.swap_vert_rounded,
+                compact: compact,
+              ),
+              _DeviceInfoPill(
+                label: 'MAC',
+                value: macAddress,
+                icon: Icons.memory_rounded,
+                compact: compact,
+                mono: true,
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: compact ? 10 : 12),
+        GridView.count(
+          crossAxisCount: 2,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+          childAspectRatio: compact ? 2.45 : 2.7,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            _DeviceModuleTile(
+              title: 'Röle 1',
+              subtitle: isOnline ? (relay1Active ? 'Çıkış aktif' : 'Beklemede') : 'Çevrimdışı',
+              icon: Icons.power_settings_new_rounded,
+              isActive: relay1Active && isOnline,
+              accent: const Color(0xFF5B13EC),
+              compact: compact,
+            ),
+            _DeviceModuleTile(
+              title: 'Röle 2',
+              subtitle: isOnline ? (relay2Active ? 'Çıkış aktif' : 'Beklemede') : 'Çevrimdışı',
+              icon: Icons.power_settings_new_rounded,
+              isActive: relay2Active && isOnline,
+              accent: const Color(0xFF7C3AED),
+              compact: compact,
+            ),
+            _DeviceModuleTile(
+              title: 'PIR 1',
+              subtitle: isOnline ? (pir1Detected ? 'Hareket algılandı' : 'Hareket yok') : 'Çevrimdışı',
+              icon: Icons.sensors_rounded,
+              isActive: pir1Detected && isOnline,
+              accent: pir1Detected ? Colors.redAccent : const Color(0xFF00FF41),
+              compact: compact,
+            ),
+            _DeviceModuleTile(
+              title: 'PIR 2',
+              subtitle: isOnline ? 'Ayrılmış modül' : 'Çevrimdışı',
+              icon: Icons.sensors_rounded,
+              isActive: false,
+              accent: const Color(0xFF94A3B8),
+              compact: compact,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSettingContent({
+    required bool compact,
+    required bool isOnline,
+  }) {
+    return Column(
+      key: const ValueKey(_DeviceCardTab.setting),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(compact ? 12 : 14),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8F9FB),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Cihaz ayar yüzeyi',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF0F172A),
+                  fontSize: compact ? 12 : 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Cihaza özel tercihler ve gelişmiş kontroller için ayrılmış alan.',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF64748B),
+                  fontSize: compact ? 10 : 11,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: compact ? 10 : 12),
+        Row(
+          children: [
+            Expanded(
+              child: _SettingPlaceholderTile(
+                title: 'Ağ',
+                value: isOnline ? 'Eşitlendi' : 'Çevrimdışı',
+                icon: Icons.wifi_tethering_rounded,
+                compact: compact,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _SettingPlaceholderTile(
+                title: 'Profil',
+                value: 'Hazırlanıyor',
+                icon: Icons.tune_rounded,
+                compact: compact,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTabContent({
+    required bool compact,
+    required bool isOnline,
+    required int pingMs,
+    required dynamic status,
+  }) {
+    switch (_activeTab) {
+      case _DeviceCardTab.device:
+        return _buildDeviceContent(
+          compact: compact,
+          isOnline: isOnline,
+          status: status,
+        );
+      case _DeviceCardTab.setting:
+        return _buildSettingContent(
+          compact: compact,
+          isOnline: isOnline,
+        );
+      case _DeviceCardTab.usage:
+        return _buildUsageContent(
+          compact: compact,
+          isOnline: isOnline,
+          pingMs: pingMs,
+          status: status,
+        );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final status = state.deviceStatuses[device.ip];
+    final status = widget.state.deviceStatuses[widget.device.ip];
     final isOnline = status?.isOnline ?? false;
-    final pingMs = state.pingLatencies[device.ip] ?? 0;
-    
-    final List<String> dLogs = state.deviceLogs[device.ip] ?? [];
+    final pingMs = widget.state.pingLatencies[widget.device.ip] ?? 0;
+
+    final List<String> dLogs = widget.state.deviceLogs[widget.device.ip] ?? [];
     final String log1 = dLogs.isNotEmpty ? dLogs[0] : '> _ Awaiting telemetry...';
     final String log2 = dLogs.length > 1 ? dLogs[1] : '';
 
-    final deviceIcon = device.role.toLowerCase().contains('primary') ? Icons.sensors_rounded : Icons.router_rounded;
+    final deviceIcon = widget.device.role.toLowerCase().contains('primary') ? Icons.sensors_rounded : Icons.router_rounded;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxHeight < 400;
         final outerPadding = compact ? 16.0 : 20.0;
-        final telemetryHeight = compact ? 44.0 : 70.0; 
+        final telemetryHeight = compact ? 44.0 : 70.0;
         final iconBoxSize = compact ? 42.0 : 48.0;
-        final bottomLogHeight = compact ? 56.0 : 88.0; 
+        final bottomLogHeight = compact ? 56.0 : 88.0;
 
         return AnimatedOpacity(
           duration: const Duration(milliseconds: 220),
@@ -475,7 +767,7 @@ class _PrototypeDeviceCard extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  device.id,
+                                  widget.device.id,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: GoogleFonts.inter(
@@ -493,7 +785,7 @@ class _PrototypeDeviceCard extends StatelessWidget {
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Text(
-                                    device.ip,
+                                    widget.device.ip,
                                     style: GoogleFonts.jetBrainsMono(
                                       color: isOnline ? const Color(0xFF5B13EC) : const Color(0xFF64748B),
                                       fontSize: 11,
@@ -508,9 +800,9 @@ class _PrototypeDeviceCard extends StatelessWidget {
                             width: compact ? 34 : 38,
                             height: compact ? 34 : 38,
                             child: IconButton(
-                              tooltip: 'Sistemi Yeniden Başlat (Reboot)',
+                              tooltip: 'Cihazı yeniden başlat',
                               padding: EdgeInsets.zero,
-                              onPressed: isOnline ? () => _confirmReboot(context, device.ip) : null,
+                              onPressed: isOnline ? () => _confirmReboot(context, widget.device.ip) : null,
                               style: IconButton.styleFrom(
                                 backgroundColor: const Color(0xFFFEF2F2),
                                 foregroundColor: const Color(0xFFDC2626),
@@ -521,92 +813,25 @@ class _PrototypeDeviceCard extends StatelessWidget {
                         ],
                       ),
                       SizedBox(height: compact ? 12 : 16),
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8F9FB),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(8),
-                                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 1))],
-                                ),
-                                child: Center(child: Text('USAGE', style: GoogleFonts.inter(color: const Color(0xFF5B13EC), fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 0.5))),
-                              ),
-                            ),
-                            Expanded(child: Center(child: Text('DEVICE', style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 0.5)))),
-                            Expanded(child: Center(child: Text('SETTING', style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 0.5)))),
-                          ],
-                        ),
+                      _DeviceCardTabs(
+                        activeTab: _activeTab,
+                        onTabChanged: (tab) {
+                          if (_activeTab == tab) return;
+                          setState(() {
+                            _activeTab = tab;
+                          });
+                        },
                       ),
-                      SizedBox(height: compact ? 16 : 20),
-                      
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          _MetricTile(
-                            label: 'PING LATENCY',
-                            value: isOnline ? '${pingMs}ms' : '--',
-                            accent: const Color(0xFF5B13EC),
-                            compact: compact,
-                            isLeft: true,
-                          ),
-                          _MetricTile(
-                            label: 'STATE',
-                            value: isOnline ? 'Online' : 'Offline',
-                            accent: isOnline ? const Color(0xFF00FF41) : const Color(0xFF94A3B8),
-                            compact: compact,
-                            isLeft: false,
-                          ),
-                        ],
-                      ),
-                      
                       SizedBox(height: compact ? 12 : 16),
-
-                      SizedBox(
-                        height: compact ? 48 : 54, 
-                        child: Row(
-                          children: [
-                            if (device.role.contains('primary')) ...[
-                              Expanded(
-                                child: _RelayControlTile(
-                                  label: 'CH 1',
-                                  isActive: status?.isRelayActive('relay_1') ?? false,
-                                  isOnline: isOnline,
-                                  onTap: () => state.toggleRelay(device.ip, 'relay_1'),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _RelayControlTile(
-                                  label: 'CH 2',
-                                  isActive: status?.isRelayActive('relay_2') ?? false,
-                                  isOnline: isOnline,
-                                  onTap: () => state.toggleRelay(device.ip, 'relay_2'),
-                                ),
-                              ),
-                            ] else ...[
-                              Expanded(
-                                child: _RelayControlTile(
-                                  label: 'RÖLE',
-                                  isActive: status?.isRelayActive('relay_1') ?? false,
-                                  isOnline: isOnline,
-                                  onTap: () => state.toggleRelay(device.ip, 'relay_1'),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(child: _TempSensorTile(status: status, isOnline: isOnline)),
-                              const SizedBox(width: 8),
-                              Expanded(child: _MotionSensorTile(status: status, isOnline: isOnline)),
-                            ]
-                          ],
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 220),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        child: _buildTabContent(
+                          compact: compact,
+                          isOnline: isOnline,
+                          pingMs: pingMs,
+                          status: status,
                         ),
                       ),
                     ],
@@ -621,12 +846,12 @@ class _PrototypeDeviceCard extends StatelessWidget {
                     isOnline: isOnline,
                   ),
                 ),
-                const SizedBox(height: 12), 
+                const SizedBox(height: 12),
                 Container(
                   width: double.infinity,
                   height: bottomLogHeight,
                   decoration: const BoxDecoration(
-                    color: Color(0xFF0F172A), 
+                    color: Color(0xFF0F172A),
                     borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -642,7 +867,7 @@ class _PrototypeDeviceCard extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.jetBrainsMono(
-                                color: isOnline ? const Color(0xFF00FF41) : const Color(0xFF94A3B8), 
+                                color: isOnline ? const Color(0xFF00FF41) : const Color(0xFF94A3B8),
                                 fontSize: 10,
                                 fontWeight: log1.contains('CMD') || log1.contains('SYS') ? FontWeight.bold : FontWeight.normal,
                               ),
@@ -654,7 +879,7 @@ class _PrototypeDeviceCard extends StatelessWidget {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.jetBrainsMono(
-                                  color: isOnline ? const Color(0xFF00FF41).withOpacity(0.6) : const Color(0xFF94A3B8).withOpacity(0.6), 
+                                  color: isOnline ? const Color(0xFF00FF41).withOpacity(0.6) : const Color(0xFF94A3B8).withOpacity(0.6),
                                   fontSize: 9,
                                 ),
                               ),
@@ -683,6 +908,308 @@ class _PrototypeDeviceCard extends StatelessWidget {
   }
 }
 
+class _DeviceCardTabs extends StatelessWidget {
+  final _DeviceCardTab activeTab;
+  final ValueChanged<_DeviceCardTab> onTabChanged;
+
+  const _DeviceCardTabs({
+    required this.activeTab,
+    required this.onTabChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _DeviceTabButton(
+              label: 'USAGE',
+              isActive: activeTab == _DeviceCardTab.usage,
+              onTap: () => onTabChanged(_DeviceCardTab.usage),
+            ),
+          ),
+          Expanded(
+            child: _DeviceTabButton(
+              label: 'DEVICE',
+              isActive: activeTab == _DeviceCardTab.device,
+              onTap: () => onTabChanged(_DeviceCardTab.device),
+            ),
+          ),
+          Expanded(
+            child: _DeviceTabButton(
+              label: 'SETTING',
+              isActive: activeTab == _DeviceCardTab.setting,
+              onTap: () => onTabChanged(_DeviceCardTab.setting),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DeviceTabButton extends StatelessWidget {
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _DeviceTabButton({
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          decoration: BoxDecoration(
+            color: isActive ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: isActive
+                ? [
+                    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 1)),
+                  ]
+                : null,
+          ),
+          child: Center(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                color: isActive ? const Color(0xFF5B13EC) : const Color(0xFF94A3B8),
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DeviceInfoPill extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final bool compact;
+  final bool mono;
+
+  const _DeviceInfoPill({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.compact,
+    this.mono = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: BoxConstraints(minWidth: compact ? 92 : 104, maxWidth: 220),
+      padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 12, vertical: compact ? 8 : 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: compact ? 14 : 15, color: const Color(0xFF5B13EC)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF94A3B8),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: (mono ? GoogleFonts.jetBrainsMono : GoogleFonts.inter)(
+                    color: const Color(0xFF0F172A),
+                    fontSize: compact ? 10 : 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DeviceModuleTile extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final bool isActive;
+  final Color accent;
+  final bool compact;
+
+  const _DeviceModuleTile({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.isActive,
+    required this.accent,
+    required this.compact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 12, vertical: compact ? 8 : 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FB),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: isActive ? accent.withOpacity(0.45) : const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: compact ? 28 : 32,
+            height: compact ? 28 : 32,
+            decoration: BoxDecoration(
+              color: accent.withOpacity(isActive ? 0.14 : 0.08),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: compact ? 15 : 16, color: accent),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF0F172A),
+                    fontSize: compact ? 11 : 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF64748B),
+                    fontSize: compact ? 9 : 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isActive ? accent : const Color(0xFFCBD5E1),
+              boxShadow: isActive
+                  ? [
+                      BoxShadow(color: accent.withOpacity(0.45), blurRadius: 8, spreadRadius: 1),
+                    ]
+                  : null,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingPlaceholderTile extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+  final bool compact;
+
+  const _SettingPlaceholderTile({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.compact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 12, vertical: compact ? 12 : 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FB),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: const Color(0xFF5B13EC), size: compact ? 18 : 20),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF0F172A),
+              fontSize: compact ? 11 : 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF64748B),
+              fontSize: compact ? 10 : 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 class _RelayControlTile extends StatelessWidget {
   final String label;
   final bool isActive;
