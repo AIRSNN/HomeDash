@@ -1,6 +1,6 @@
 /// MADAM Projesi - Donanım Envanteri
 /// NOT: Bu dosya bilinen statik cihaz listesini (IP ve Roller) barındırır ve değiştirilemez.
-/// Değişiklik gerekirse '01_MADAM_HARDWARE_AND_NETWORK_SOT.md' dosyasına müracaat edin.
+/// Değişiklik gerekirse 'docs/01_MADAM_HARDWARE_AND_NETWORK_SOT.md' dosyasına müracaat edin.
 
 import '../models/device_info.dart';
 

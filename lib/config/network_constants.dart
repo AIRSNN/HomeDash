@@ -1,6 +1,6 @@
 /// MADAM Projesi - Sabit Ağ Ayarları
 /// NOT: Bu dosya ağ sabitlerini barındırır ve değiştirilemez.
-/// Değişiklik gerekirse önce '01_MADAM_HARDWARE_AND_NETWORK_SOT.md' dosyasına müracaat edin.
+/// Değişiklik gerekirse önce 'docs/01_MADAM_HARDWARE_AND_NETWORK_SOT.md' dosyasına müracaat edin.
 
 class NetworkConstants {
   // --- Değişmez Ağ Sabitleri ---

@@ -70,3 +70,7 @@ ip_config.json
 *.env
 *.env.*
 
+# Local backup archives
+backups/
+*.zip
+

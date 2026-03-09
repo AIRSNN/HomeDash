@@ -27,11 +27,11 @@ Bu sistemin ilk hedefi, laboratuvar/test ortamında çalışan cihazları güven
 - İlk aşamada odak noktası: **kararlı temel altyapı**, estetikten önce **çalışan çekirdek sistem**.
 
 ## 5. Tek Doğruluk Kaynağı (SOT) Dosyaları
-- `00_MADAM_MASTER_CONTEXT.md` -> Projenin genel bağlamı
-- `01_MADAM_HARDWARE_AND_NETWORK_SOT.md` -> Donanım ve ağ sabitleri (değişmez kabul edilir)
-- `02_MADAM_AI_DEVELOPMENT_RULES.md` -> AI için çalışma kuralları
-- `03_MADAM_PHASED_ROADMAP.md` -> Faz bazlı ilerleme planı
-- `04_MADAM_PROMPT_TEMPLATES.md` -> Tekrar kullanılabilir prompt şablonları
+- `docs/00_MADAM_MASTER_CONTEXT.md` -> Projenin genel bağlamı
+- `docs/01_MADAM_HARDWARE_AND_NETWORK_SOT.md` -> Donanım ve ağ sabitleri (değişmez kabul edilir)
+- `docs/02_MADAM_AI_DEVELOPMENT_RULES.md` -> AI için çalışma kuralları
+- `docs/03_MADAM_PHASED_ROADMAP.md` -> Faz bazlı ilerleme planı
+- `docs/04_MADAM_PROMPT_TEMPLATES.md` -> Tekrar kullanılabilir prompt şablonları
 
 ## 6. Yazılım Mimarisi İlkeleri
 - **UI Katmanı Korunacaktır:** `dashboard_page.dart` ve UI bileşenleri stabildir. Sol menü, üst bar ve renk geçişlerine KESİNLİKLE dokunulmaz.
@@ -41,7 +41,7 @@ Bu sistemin ilk hedefi, laboratuvar/test ortamında çalışan cihazları güven
 - Timer, ping ve heartbeat işlemleri non-blocking olmalı.
 
 ## 7. İlk Aşama Başarı Kriteri & Mevcut Durum
-İlk aşama başarı kriterleri (cihazları ağda görme, canlı durum gösterme) sağlanmıştır. `firmware/` içindeki ESP kodları hazırdır.
+İlk aşama başarı kriterleri (cihazları ağda görme, canlı durum gösterme) sağlanmıştır. `docs/Arduino/HomeDash/` içindeki ESP kodları hazırdır.
 
 **Güncel İyileştirme Backlog'u (Mimari Kararlar):**
 1. **State Yönetimi Optimizasyonu:** `dashboard_state.dart` içindeki polling işlemi `fetch` (veriyi topla) ve `commit` (state'e yaz) olarak ayrılacak (`Future.wait` darboğazını aşmak için).

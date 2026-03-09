@@ -72,7 +72,7 @@ class _DashboardPageState extends State<DashboardPage> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FB),
+      backgroundColor: const Color(0xFFF8F9FB), // background-light
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -88,7 +88,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       _TopHeader(state: dashboardState),
                       Expanded(
                         child: Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+                          padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
@@ -108,7 +108,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                       _goToNextPage(devicePages.length),
                                 ),
                               ),
-                              const SizedBox(width: 20),
+                              const SizedBox(width: 24),
                               _RightPanel(state: dashboardState),
                             ],
                           ),
@@ -156,7 +156,7 @@ class _MainContent extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxHeight < 760;
-        final deckHeight = compact ? 448.0 : 484.0;
+        final deckHeight = compact ? 540.0 : 640.0;
 
         return SingleChildScrollView(
           child: ConstrainedBox(
@@ -165,16 +165,17 @@ class _MainContent extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.92),
+                    color: Colors.white.withOpacity(0.95),
                     borderRadius: BorderRadius.circular(28),
                     border: Border.all(color: const Color(0xFFE9ECF5)),
                     boxShadow: [
+                      // Tailwind glass-shadow: rgba(91, 19, 236, 0.08)
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
-                        blurRadius: 30,
-                        offset: const Offset(0, 16),
+                        color: const Color(0xFF5B13EC).withOpacity(0.08),
+                        blurRadius: 40,
+                        offset: const Offset(0, 10),
                       ),
                     ],
                   ),
@@ -185,7 +186,7 @@ class _MainContent extends StatelessWidget {
                         totalPages: devicePages.length,
                         hasDevices: hasDevices,
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 18),
                       SizedBox(
                         height: deckHeight,
                         child: hasDevices
@@ -207,7 +208,7 @@ class _MainContent extends StatelessWidget {
                                       return Expanded(
                                         child: Padding(
                                           padding: EdgeInsets.only(
-                                            right: slotIndex == 2 ? 0 : 14,
+                                            right: slotIndex == 2 ? 0 : 20,
                                           ),
                                           child: _PrototypeDeviceCard(
                                             state: state,
@@ -221,7 +222,7 @@ class _MainContent extends StatelessWidget {
                               )
                             : const _EmptyDeckCard(),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 18),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -236,12 +237,12 @@ class _MainContent extends StatelessWidget {
                           Row(
                             children: [
                               _PagerButton(
-                                icon: Icons.arrow_back_rounded,
+                                icon: Icons.chevron_left_rounded,
                                 onPressed: currentPage > 0 ? onPrevious : null,
                               ),
-                              const SizedBox(width: 10),
+                              const SizedBox(width: 12),
                               _PagerButton(
-                                icon: Icons.arrow_forward_rounded,
+                                icon: Icons.chevron_right_rounded,
                                 onPressed: currentPage < devicePages.length - 1
                                     ? onNext
                                     : null,
@@ -254,8 +255,6 @@ class _MainContent extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 18),
-                _SummaryCardsSection(state: state),
               ],
             ),
           ),
@@ -288,7 +287,7 @@ class _DeckSimpleHeader extends StatelessWidget {
                 'Station Deck',
                 style: TextStyle(
                   color: Color(0xFF161A2D),
-                  fontSize: 24,
+                  fontSize: 22,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.2,
                 ),
@@ -297,7 +296,7 @@ class _DeckSimpleHeader extends StatelessWidget {
               Text(
                 'Live nodes, telemetry and quick actions',
                 style: TextStyle(
-                  color: Color(0xFF8A90A2),
+                  color: Color(0xFF64748B),
                   fontSize: 13,
                   height: 1.35,
                 ),
@@ -306,12 +305,21 @@ class _DeckSimpleHeader extends StatelessWidget {
           ),
         ),
         if (hasDevices)
-          Text(
-            'Page ${currentPage + 1} / $totalPages',
-            style: const TextStyle(
-              color: Color(0xFF8A90A2),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8F9FB),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Text(
+              'PAGE ${currentPage + 1} OF $totalPages',
+              style: const TextStyle(
+                color: Color(0xFF94A3B8),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.0,
+              ),
             ),
           ),
       ],
@@ -388,9 +396,9 @@ class _PrototypeDeviceCard extends StatelessWidget {
 
   Color _getLatencyColor(int ms) {
     if (ms == 0) return Colors.grey;
-    if (ms < 50) return Colors.green;
+    if (ms < 50) return const Color(0xFF00FF41); // cockpit green
     if (ms < 150) return Colors.orange;
-    return Colors.red;
+    return Colors.redAccent;
   }
 
   List<double> _buildWaveformSamples(int pingMs) {
@@ -411,266 +419,255 @@ class _PrototypeDeviceCard extends StatelessWidget {
     final pingMs = state.pingLatencies[device.ip] ?? 0;
     final lastLog = state.logs.isNotEmpty
         ? state.logs.first
-        : 'No recent logs for this device yet.';
+        : '[SYSTEM] Awaiting stream...';
     final deviceIcon = device.role.toLowerCase().contains('primary')
-        ? Icons.hub_rounded
-        : Icons.memory_rounded;
+        ? Icons.sensors_rounded
+        : Icons.router_rounded;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxHeight < 400;
-        final outerPadding = compact ? 14.0 : 18.0;
-        final telemetryHeight = compact ? 40.0 : 52.0;
-        final iconBoxSize = compact ? 42.0 : 46.0;
-        final metricGap = compact ? 8.0 : 10.0;
-        final betweenGap = compact ? 10.0 : 14.0;
-        final bottomLogHeight = compact ? 50.0 : 64.0;
+        final outerPadding = compact ? 16.0 : 20.0;
+        final telemetryHeight = compact ? 44.0 : 54.0;
+        final iconBoxSize = compact ? 42.0 : 48.0;
+        final metricGap = compact ? 10.0 : 12.0;
+        final bottomLogHeight = compact ? 56.0 : 68.0;
 
         return AnimatedOpacity(
           duration: const Duration(milliseconds: 220),
-          opacity: isOnline ? 1 : 0.72,
+          opacity: isOnline ? 1 : 0.6,
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(28),
+              borderRadius: BorderRadius.circular(24),
               border: Border.all(
                 color: isOnline
-                    ? const Color(0x1A5B13EC)
-                    : const Color(0x1A9CA3AF),
+                    ? const Color(0xFF5B13EC).withOpacity(0.3)
+                    : const Color(0xFFE2E8F0),
+                width: isOnline ? 1.5 : 1.0,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF5B13EC).withOpacity(0.06),
-                  blurRadius: 26,
-                  offset: const Offset(0, 14),
+                  color: isOnline
+                      ? const Color(0xFF5B13EC).withOpacity(0.12)
+                      : Colors.black.withOpacity(0.02),
+                  blurRadius: 30,
+                  offset: const Offset(0, 12),
                 ),
               ],
             ),
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                outerPadding,
-                outerPadding,
-                outerPadding,
-                outerPadding - 2,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    outerPadding,
+                    outerPadding,
+                    outerPadding,
+                    outerPadding - 4,
+                  ),
+                  child: Column(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF2EEFF),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: const Text(
-                          'NODE',
-                          style: TextStyle(
-                            color: Color(0xFF5B13EC),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.8,
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF5B13EC).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.memory_rounded,
+                              size: 16,
+                              color: Color(0xFF5B13EC),
+                            ),
                           ),
-                        ),
+                          const Spacer(),
+                          SizedBox(
+                            width: compact ? 34 : 38,
+                            height: compact ? 34 : 38,
+                            child: IconButton(
+                              padding: EdgeInsets.zero,
+                              onPressed: () =>
+                                  _handleToggle(context, device.ip),
+                              style: IconButton.styleFrom(
+                                backgroundColor: isOnline
+                                    ? const Color(0xFF5B13EC)
+                                    : const Color(0xFFF1F5F9),
+                                foregroundColor: isOnline
+                                    ? Colors.white
+                                    : const Color(0xFF94A3B8),
+                              ),
+                              icon: Icon(
+                                relay1Active
+                                    ? Icons.power_settings_new_rounded
+                                    : Icons.power_settings_new_rounded,
+                                size: compact ? 18 : 20,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const Spacer(),
-                      SizedBox(
-                        width: compact ? 34 : 38,
-                        height: compact ? 34 : 38,
-                        child: IconButton(
-                          padding: EdgeInsets.zero,
-                          onPressed: () => _handleToggle(context, device.ip),
-                          style: IconButton.styleFrom(
-                            backgroundColor: const Color(0xFFF6F3FF),
-                            foregroundColor: const Color(0xFF5B13EC),
+                      SizedBox(height: compact ? 14 : 18),
+                      Row(
+                        children: [
+                          Container(
+                            width: iconBoxSize,
+                            height: iconBoxSize,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8F9FB),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: const Color(0xFFE2E8F0),
+                              ),
+                            ),
+                            child: Icon(
+                              deviceIcon,
+                              color: const Color(0xFF64748B),
+                              size: compact ? 22 : 26,
+                            ),
                           ),
-                          icon: Icon(
-                            relay1Active
-                                ? Icons.power_settings_new_rounded
-                                : Icons.toggle_off_rounded,
-                            size: compact ? 18 : 20,
+                          SizedBox(width: compact ? 12 : 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  device.id,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: const Color(0xFF0F172A),
+                                    fontSize: compact ? 15 : 17,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.3,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF1F5F9),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    device.ip,
+                                    style: const TextStyle(
+                                      color: Color(0xFF64748B),
+                                      fontSize: 11,
+                                      fontFamily: 'JetBrains Mono',
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
+                        ],
+                      ),
+                      SizedBox(height: compact ? 16 : 20),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _MetricTile(
+                              label: 'LATENCY',
+                              value: isOnline ? '${pingMs}ms' : '--',
+                              accent: const Color(0xFF5B13EC),
+                              compact: compact,
+                            ),
+                          ),
+                          SizedBox(width: metricGap),
+                          Expanded(
+                            child: _MetricTile(
+                              label: 'RELAY STATE',
+                              value: relay1Active ? 'Active' : 'Standby',
+                              accent: const Color(0xFF0EA5E9),
+                              compact: compact,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: compact ? 14 : 18),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.only(top: 8),
+                        child: DeviceWaveformChart(
+                          samples: _buildWaveformSamples(pingMs),
+                          height: telemetryHeight,
+                          barWidth: compact ? 6 : 8,
+                          spacing: 4,
                         ),
                       ),
                     ],
                   ),
-                  SizedBox(height: compact ? 10 : 12),
-                  Row(
+                ),
+                const Spacer(),
+                // Dark Log Strip as seen in the HTML prototype
+                Container(
+                  width: double.infinity,
+                  height: bottomLogHeight,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF0F172A), // Tailwind slate-900
+                    borderRadius: BorderRadius.vertical(
+                      bottom: Radius.circular(22),
+                    ),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  child: Row(
                     children: [
-                      Container(
-                        width: iconBoxSize,
-                        height: iconBoxSize,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF5B13EC), Color(0xFF8360FF)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Icon(
-                          deviceIcon,
-                          color: Colors.white,
-                          size: compact ? 20 : 24,
-                        ),
-                      ),
-                      SizedBox(width: compact ? 10 : 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              device.id,
+                              lastLog,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: const Color(0xFF161A2D),
-                                fontSize: compact ? 14 : 16,
-                                fontWeight: FontWeight.w800,
+                              style: const TextStyle(
+                                color: Color(0xFF00FF41), // Cockpit Green
+                                fontSize: 10,
+                                fontFamily: 'JetBrains Mono',
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            const SizedBox(height: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF7F8FC),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                device.ip,
-                                style: const TextStyle(
-                                  color: Color(0xFF667085),
-                                  fontSize: 11,
-                                  fontFamily: 'Courier',
+                            if (isOnline) ...[
+                              const SizedBox(height: 4),
+                              const Text(
+                                '> _ Awaiting sync...',
+                                style: TextStyle(
+                                  color: Color(0xFF00FF41),
+                                  fontSize: 10,
+                                  fontFamily: 'JetBrains Mono',
                                 ),
                               ),
-                            ),
+                            ],
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      _StatusBadge(isOnline: isOnline),
-                    ],
-                  ),
-                  SizedBox(height: compact ? 12 : 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _MetricTile(
-                          label: 'Latency',
-                          value: isOnline ? '$pingMs ms' : '--',
-                          accent: _getLatencyColor(pingMs),
-                          compact: compact,
+                      IconButton(
+                        onPressed: () =>
+                            _showDeviceDetailsDialog(context, status, isOnline),
+                        icon: const Icon(
+                          Icons.analytics_outlined,
+                          color: Colors.white54,
                         ),
-                      ),
-                      SizedBox(width: metricGap),
-                      Expanded(
-                        child: _MetricTile(
-                          label: 'Relay 1',
-                          value: relay1Active ? 'Active' : 'Standby',
-                          accent: relay1Active
-                              ? Colors.orange
-                              : const Color(0xFF8A90A2),
-                          compact: compact,
-                        ),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                       ),
                     ],
                   ),
-                  SizedBox(height: betweenGap),
-                  Container(
-                    padding: EdgeInsets.fromLTRB(
-                      12,
-                      compact ? 10 : 12,
-                      12,
-                      compact ? 6 : 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8F9FD),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: const Color(0xFFE9ECF5)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Telemetry',
-                          style: TextStyle(
-                            color: Color(0xFF8A90A2),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        DeviceWaveformChart(
-                          samples: _buildWaveformSamples(pingMs),
-                          height: telemetryHeight,
-                          barWidth: compact ? 6 : 7,
-                          spacing: 4,
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: compact ? 10 : 12),
-                  SizedBox(
-                    height: bottomLogHeight,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            height: bottomLogHeight,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF111827),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                lastLog,
-                                maxLines: compact ? 1 : 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Color(0xFF8BFFCA),
-                                  fontSize: 10,
-                                  fontFamily: 'Courier',
-                                  height: 1.3,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        SizedBox(
-                          width: bottomLogHeight,
-                          height: bottomLogHeight,
-                          child: IconButton(
-                            onPressed: () => _showDeviceDetailsDialog(
-                              context,
-                              status,
-                              isOnline,
-                            ),
-                            style: IconButton.styleFrom(
-                              backgroundColor: const Color(0xFFF2EEFF),
-                              foregroundColor: const Color(0xFF5B13EC),
-                            ),
-                            icon: const Icon(Icons.analytics_outlined),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         );
@@ -694,37 +691,31 @@ class _MetricTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.fromLTRB(12, compact ? 8 : 10, 12, compact ? 8 : 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FD),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE9ECF5)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: Color(0xFF8A90A2),
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFF94A3B8),
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.8,
           ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: accent,
-              fontSize: compact ? 14 : 15,
-              fontWeight: FontWeight.w800,
-            ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: accent,
+            fontSize: compact ? 16 : 18,
+            fontFamily: 'JetBrains Mono',
+            fontWeight: FontWeight.bold,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -764,15 +755,15 @@ class _EmptyDeckCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FD),
+        color: const Color(0xFFF8F9FB),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE9ECF5)),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: const Center(
         child: Text(
           'No devices available.',
           style: TextStyle(
-            color: Color(0xFF8A90A2),
+            color: Color(0xFF64748B),
             fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
@@ -802,14 +793,14 @@ class _PagerButton extends StatelessWidget {
       style: IconButton.styleFrom(
         minimumSize: const Size(44, 44),
         backgroundColor: isPrimary
-            ? (enabled ? const Color(0xFF5B13EC) : const Color(0xFFE6E1F9))
+            ? (enabled ? const Color(0xFF5B13EC) : const Color(0xFFE2E8F0))
             : Colors.white,
         foregroundColor: isPrimary
             ? Colors.white
-            : (enabled ? const Color(0xFF161A2D) : const Color(0xFFB3B8C5)),
+            : (enabled ? const Color(0xFF0F172A) : const Color(0xFF94A3B8)),
         side: isPrimary
             ? BorderSide.none
-            : const BorderSide(color: Color(0xFFE3E7F0)),
+            : const BorderSide(color: Color(0xFFE2E8F0)),
       ),
       icon: Icon(icon),
     );
@@ -822,22 +813,22 @@ class _Sidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 250,
+      width: 260,
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(right: BorderSide(color: Color(0xFFE7EAF3), width: 1)),
+        border: Border(right: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 22, 18, 18),
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: const [
             _SidebarBrand(),
-            SizedBox(height: 24),
+            SizedBox(height: 32),
             _SidebarMenu(),
             Spacer(),
-            Divider(color: Color(0xFFE7EAF3), height: 1),
-            SizedBox(height: 16),
+            Divider(color: Color(0xFFF1F5F9), height: 1),
+            SizedBox(height: 20),
             _SidebarProfile(),
           ],
         ),
@@ -854,26 +845,33 @@ class _SidebarBrand extends StatelessWidget {
     return Row(
       children: [
         Container(
-          width: 42,
-          height: 42,
-          decoration: const BoxDecoration(
-            color: Color(0xFF5B13EC),
-            shape: BoxShape.circle,
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: const Color(0xFF5B13EC),
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF5B13EC).withOpacity(0.3),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
           child: const Icon(
-            Icons.hexagon_rounded,
+            Icons.hexagon_outlined,
             color: Colors.white,
-            size: 22,
+            size: 24,
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 14),
         const Text(
           'MADAM',
           style: TextStyle(
-            color: Color(0xFF161A2D),
-            fontSize: 22,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.6,
+            color: Color(0xFF0F172A),
+            fontSize: 24,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.5,
           ),
         ),
       ],
@@ -889,31 +887,31 @@ class _SidebarMenu extends StatelessWidget {
     return const Column(
       children: [
         _SidebarItem(
-          icon: Icons.dashboard_outlined,
+          icon: Icons.dashboard_rounded,
           label: 'Dashboard',
           isActive: false,
         ),
         SizedBox(height: 8),
         _SidebarItem(
-          icon: Icons.router_outlined,
+          icon: Icons.memory_rounded,
           label: 'Stations',
           isActive: true,
         ),
         SizedBox(height: 8),
         _SidebarItem(
-          icon: Icons.auto_awesome_motion_outlined,
+          icon: Icons.auto_awesome_rounded,
           label: 'Automations',
           isActive: false,
         ),
         SizedBox(height: 8),
         _SidebarItem(
-          icon: Icons.local_library_outlined,
+          icon: Icons.analytics_rounded,
           label: 'Library',
           isActive: false,
         ),
         SizedBox(height: 8),
         _SidebarItem(
-          icon: Icons.settings_outlined,
+          icon: Icons.settings_rounded,
           label: 'Settings',
           isActive: false,
         ),
@@ -935,32 +933,34 @@ class _SidebarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = isActive ? const Color(0xFFF1EBFF) : Colors.transparent;
+    final bgColor = isActive
+        ? const Color(0xFF5B13EC).withOpacity(0.1)
+        : Colors.transparent;
     final fgColor = isActive
         ? const Color(0xFF5B13EC)
-        : const Color(0xFF6B7280);
+        : const Color(0xFF64748B);
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         onTap: () {},
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
             color: bgColor,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
           ),
           child: Row(
             children: [
-              Icon(icon, color: fgColor, size: 21),
-              const SizedBox(width: 12),
+              Icon(icon, color: fgColor, size: 22),
+              const SizedBox(width: 14),
               Text(
                 label,
                 style: TextStyle(
                   color: fgColor,
-                  fontSize: 14,
-                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                  fontSize: 15,
+                  fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
                 ),
               ),
             ],
@@ -976,48 +976,56 @@ class _SidebarProfile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 42,
-          height: 42,
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              colors: [Color(0xFF5B13EC), Color(0xFF8D63FF)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Color(0xFFF1F5F9),
+            ),
+            child: const Icon(
+              Icons.person_rounded,
+              color: Color(0xFF94A3B8),
+              size: 24,
             ),
           ),
-          child: const Icon(
-            Icons.person_rounded,
-            color: Colors.white,
-            size: 22,
-          ),
-        ),
-        const SizedBox(width: 12),
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Madam User',
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Color(0xFF161A2D),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Madam User',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Color(0xFF0F172A),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
-              SizedBox(height: 2),
-              Text(
-                'v2-stable',
-                style: TextStyle(color: Color(0xFF8A90A2), fontSize: 12),
-              ),
-            ],
+                SizedBox(height: 2),
+                Text(
+                  'v2-stable',
+                  style: TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 11,
+                    fontFamily: 'JetBrains Mono',
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -1053,7 +1061,13 @@ class _TopHeaderState extends State<_TopHeader> {
     super.dispose();
   }
 
-  String _formatNow(DateTime value) {
+  String _formatTime(DateTime value) {
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+
+  String _formatDate(DateTime value) {
     const months = [
       'Jan',
       'Feb',
@@ -1068,164 +1082,185 @@ class _TopHeaderState extends State<_TopHeader> {
       'Nov',
       'Dec',
     ];
-
-    final hour = value.hour.toString().padLeft(2, '0');
-    final minute = value.minute.toString().padLeft(2, '0');
     final day = value.day.toString().padLeft(2, '0');
     final month = months[value.month - 1];
     final year = value.year.toString();
-
-    return '$hour:$minute, $day $month $year';
+    return '$day $month $year'.toUpperCase();
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 84,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      height: 90,
+      padding: const EdgeInsets.symmetric(horizontal: 32),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.88),
+        color: Colors.white.withOpacity(0.80),
         border: const Border(
-          bottom: BorderSide(color: Color(0xFFE7EAF3), width: 1),
+          bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
         ),
       ),
       child: Row(
         children: [
-          const Text(
-            'Control Surface',
-            style: TextStyle(
-              color: Color(0xFF161A2D),
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(width: 18),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF6F3FF),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              widget.state.isPolling ? 'Automation active' : 'Automation idle',
-              style: const TextStyle(
-                color: Color(0xFF5B13EC),
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          const Spacer(),
-          if (widget.state.isPolling)
-            Row(
-              children: [
-                const Text(
-                  'Loop active',
-                  style: TextStyle(
-                    color: Colors.green,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.redAccent.withOpacity(0.08),
-                    foregroundColor: Colors.red,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  icon: const Icon(Icons.stop),
-                  label: const Text('Stop'),
-                  onPressed: widget.state.stopPingLoop,
-                ),
-              ],
-            )
-          else
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF5B13EC),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              Text(
+                'Active Stations',
+                style: TextStyle(
+                  color: Color(0xFF0F172A),
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
                 ),
               ),
-              icon: const Icon(Icons.play_arrow),
-              label: const Text('Start'),
-              onPressed: widget.state.startPingLoop,
-            ),
-          const SizedBox(width: 10),
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.red,
-              side: const BorderSide(color: Colors.red),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            icon: const Icon(Icons.exit_to_app),
-            label: const Text('Exit'),
-            onPressed: widget.state.gracefulShutdownAndExit,
-          ),
-          const SizedBox(width: 20),
-          Text(
-            _formatNow(_now),
-            style: const TextStyle(
-              color: Color(0xFF6B7280),
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5F7FC),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(
-                  Icons.notifications_none_rounded,
-                  color: Color(0xFF161A2D),
-                ),
-              ),
-              Positioned(
-                top: 9,
-                right: 10,
-                child: Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: Colors.redAccent,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
+              SizedBox(height: 4),
+              Text(
+                'Smart home devices real-time telemetry.',
+                style: TextStyle(
+                  color: Color(0xFF64748B),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
           ),
-          const SizedBox(width: 12),
-          Container(
-            width: 42,
-            height: 42,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [Color(0xFF5B13EC), Color(0xFF8D63FF)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          const SizedBox(width: 24),
+          if (widget.state.isPolling)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'Automation Active',
+                style: TextStyle(
+                  color: Colors.green,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-            child: const Icon(
-              Icons.person_rounded,
-              color: Colors.white,
-              size: 22,
+          const Spacer(),
+          if (widget.state.isPolling)
+            ElevatedButton.icon(
+              onPressed: widget.state.stopPingLoop,
+              icon: const Icon(Icons.stop_rounded, size: 18),
+              label: const Text('Stop'),
+              style: ElevatedButton.styleFrom(
+                elevation: 0,
+                backgroundColor: Colors.redAccent.withOpacity(0.1),
+                foregroundColor: Colors.redAccent,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            )
+          else
+            ElevatedButton.icon(
+              onPressed: widget.state.startPingLoop,
+              icon: const Icon(Icons.play_arrow_rounded, size: 18),
+              label: const Text('Start'),
+              style: ElevatedButton.styleFrom(
+                elevation: 0,
+                backgroundColor: const Color(0xFF5B13EC),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
+          const SizedBox(width: 12),
+          OutlinedButton.icon(
+            onPressed: widget.state.gracefulShutdownAndExit,
+            icon: const Icon(Icons.exit_to_app_rounded, size: 18),
+            label: const Text('Exit'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.redAccent,
+              side: const BorderSide(color: Colors.redAccent),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+          const SizedBox(width: 24),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                _formatTime(_now),
+                style: const TextStyle(
+                  color: Color(0xFF0F172A),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                _formatDate(_now),
+                style: const TextStyle(
+                  color: Color(0xFF64748B),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 24),
+          Container(width: 1, height: 40, color: const Color(0xFFE2E8F0)),
+          const SizedBox(width: 24),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF5B13EC).withOpacity(0.08),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.notifications_rounded,
+                  color: Color(0xFF64748B),
+                ),
+              ),
+              Positioned(
+                top: 10,
+                right: 12,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -1233,154 +1268,6 @@ class _TopHeaderState extends State<_TopHeader> {
   }
 }
 
-class _SummaryCardsSection extends StatelessWidget {
-  final DashboardState state;
-
-  const _SummaryCardsSection({required this.state});
-
-  @override
-  Widget build(BuildContext context) {
-    final onlineCount = state.deviceStatuses.values
-        .where((s) => s.isOnline)
-        .length;
-    final relayCount = state.deviceStatuses.values
-        .where((s) => s.isOnline && s.isRelayActive('relay_1'))
-        .length;
-    final automationState = state.isPolling ? 'Running' : 'Idle';
-    final systemState = onlineCount > 0 ? 'Nominal' : 'Offline';
-
-    return Wrap(
-      spacing: 14,
-      runSpacing: 14,
-      children: [
-        _SummaryCard(
-          width: 220,
-          title: 'System Status',
-          value: systemState,
-          subtitle: '$onlineCount active nodes',
-          icon: Icons.memory_rounded,
-          colors: const [Color(0xFF5B13EC), Color(0xFF8B5CFF)],
-        ),
-        _SummaryCard(
-          width: 220,
-          title: 'Central Connection',
-          value: onlineCount > 0 ? 'Stable' : 'Down',
-          subtitle: 'Master link monitor',
-          icon: Icons.hub_rounded,
-          colors: const [Color(0xFF2563EB), Color(0xFF60A5FA)],
-        ),
-        _SummaryCard(
-          width: 220,
-          title: 'Active Relays',
-          value: '$relayCount',
-          subtitle: 'Relay_1 outputs online',
-          icon: Icons.flash_on_rounded,
-          colors: const [Color(0xFF059669), Color(0xFF34D399)],
-        ),
-        _SummaryCard(
-          width: 220,
-          title: 'Automations',
-          value: automationState,
-          subtitle: 'Polling edge rules',
-          icon: Icons.auto_mode_rounded,
-          colors: const [Color(0xFFEA580C), Color(0xFFF59E0B)],
-        ),
-      ],
-    );
-  }
-}
-
-class _SummaryCard extends StatelessWidget {
-  final double width;
-  final String title;
-  final String value;
-  final String subtitle;
-  final IconData icon;
-  final List<Color> colors;
-
-  const _SummaryCard({
-    required this.width,
-    required this.title,
-    required this.value,
-    required this.subtitle,
-    required this.icon,
-    required this.colors,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: width,
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: colors,
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: colors.first.withOpacity(0.26),
-              blurRadius: 22,
-              offset: const Offset(0, 12),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.16),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(icon, color: Colors.white),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    value,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white70, fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _RightPanel extends StatelessWidget {
   final DashboardState state;
@@ -1390,17 +1277,19 @@ class _RightPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 300,
+      width: 320,
       child: Container(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.96),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: const Color(0xFFE9ECF5)),
           boxShadow: [
+            // Tailwind glass-shadow
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 28,
-              offset: const Offset(0, 14),
+              color: const Color(0xFF5B13EC).withOpacity(0.08),
+              blurRadius: 40,
+              offset: const Offset(0, 10),
             ),
           ],
         ),
@@ -1409,110 +1298,152 @@ class _RightPanel extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.star_rounded, color: Color(0xFFF59E0B)),
-                const SizedBox(width: 8),
                 const Expanded(
                   child: Text(
                     'Favorites',
                     style: TextStyle(
-                      color: Color(0xFF161A2D),
-                      fontSize: 18,
+                      color: Color(0xFF0F172A),
+                      fontSize: 20,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
-                TextButton.icon(
+                IconButton(
                   onPressed: () {},
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('Add'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF5B13EC),
+                  icon: const Icon(
+                    Icons.star_rounded,
+                    color: Color(0xFF5B13EC),
+                  ),
+                  style: IconButton.styleFrom(
+                    backgroundColor: const Color(0xFF5B13EC).withOpacity(0.1),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            const _FavoriteTile(
-              title: 'ESP32C6 Master Node',
-              subtitle: '192.168.55.29',
-              icon: Icons.router_rounded,
-              accent: Color(0xFF5B13EC),
+            const SizedBox(height: 20),
+            Expanded(
+              child: ListView(
+                physics: const BouncingScrollPhysics(),
+                children: const [
+                  _FavoriteTile(
+                    title: 'ESP32C6 Master Node',
+                    subtitle: '192.168.55.29',
+                    icon: Icons.router_rounded,
+                    isActive: true,
+                  ),
+                  SizedBox(height: 12),
+                  _FavoriteTile(
+                    title: 'ESP8266 Actuator Node',
+                    subtitle: '192.168.55.20',
+                    icon: Icons.memory_rounded,
+                    isActive: true,
+                  ),
+                  SizedBox(height: 12),
+                  _FavoriteTile(
+                    title: 'Edge Sensor 02',
+                    subtitle: '192.168.55.21',
+                    icon: Icons.cloud_off_rounded,
+                    isActive: false,
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
-            const _FavoriteTile(
-              title: 'ESP8266 Actuator Node',
-              subtitle: '192.168.55.20',
-              icon: Icons.memory_rounded,
-              accent: Color(0xFF2563EB),
-            ),
-            const SizedBox(height: 12),
-            const _FavoriteTile(
-              title: 'Relay Channel Monitor',
-              subtitle: 'Quick output control',
-              icon: Icons.flash_on_rounded,
-              accent: Color(0xFF059669),
-            ),
-            const SizedBox(height: 12),
-            const _FavoriteTile(
-              title: 'Automation Bridge',
-              subtitle: 'Edge trigger route',
-              icon: Icons.auto_mode_rounded,
-              accent: Color(0xFFEA580C),
-            ),
-            const Spacer(),
+            const SizedBox(height: 20),
+            // Tailwind Security Alert with Active Gradient
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF7F1D1D), Color(0xFFEF4444)],
+                  colors: [
+                    Color(0xFF5B13EC),
+                    Color(0xFF06B6D4),
+                  ], // Primary to Cyan (active-gradient)
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(22),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFEF4444).withOpacity(0.34),
-                    blurRadius: 28,
-                    spreadRadius: 1,
-                    offset: const Offset(0, 12),
+                    color: const Color(0xFF5B13EC).withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
                   ),
                 ],
               ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Stack(
                 children: [
-                  Row(
+                  const Positioned(
+                    right: -20,
+                    bottom: -20,
+                    child: Icon(
+                      Icons.notifications_active_rounded,
+                      size: 80,
+                      color: Colors.white10,
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.sensors_rounded, color: Colors.white),
-                      SizedBox(width: 8),
-                      Text(
-                        'Security Alert',
+                      Row(
+                        children: const [
+                          Icon(
+                            Icons.crisis_alert_rounded,
+                            color: Color(0xFFFCA5A5),
+                            size: 20,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Security Alert',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Colors.redAccent.withOpacity(0.5),
+                          ),
+                        ),
+                        child: const Text(
+                          'Motion Detected!',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      const Text(
+                        'Zone: Outdoor Entryway',
                         style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
+                          color: Colors.white70,
+                          fontSize: 11,
+                          fontFamily: 'JetBrains Mono',
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Time: 23:14:05',
+                        style: TextStyle(
+                          color: Colors.white54,
+                          fontSize: 11,
+                          fontFamily: 'JetBrains Mono',
                         ),
                       ),
                     ],
-                  ),
-                  SizedBox(height: 14),
-                  Text(
-                    'Motion Detected',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Review recent node activity and cross-check logs before dispatching a command.',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                      height: 1.4,
-                    ),
                   ),
                 ],
               ),
@@ -1528,13 +1459,13 @@ class _FavoriteTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final IconData icon;
-  final Color accent;
+  final bool isActive;
 
   const _FavoriteTile({
     required this.title,
     required this.subtitle,
     required this.icon,
-    required this.accent,
+    required this.isActive,
   });
 
   @override
@@ -1542,33 +1473,84 @@ class _FavoriteTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F8FC),
+        color: isActive ? const Color(0xFFF8F9FB) : Colors.white,
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isActive ? const Color(0xFFE2E8F0) : Colors.transparent,
+        ),
       ),
       child: Row(
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: accent.withOpacity(0.12),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            child: Icon(icon, color: accent),
+            child: Icon(
+              icon,
+              color: isActive
+                  ? const Color(0xFF94A3B8)
+                  : const Color(0xFFCBD5E1),
+            ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF161A2D),
-                    fontWeight: FontWeight.w700,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: isActive
+                              ? const Color(0xFF0F172A)
+                              : const Color(0xFF64748B),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    if (isActive)
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF00FF41),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF00FF41).withOpacity(0.6),
+                              blurRadius: 8,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (!isActive)
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFCBD5E1),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -1576,8 +1558,9 @@ class _FavoriteTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Color(0xFF8A90A2),
-                    fontSize: 12,
+                    color: Color(0xFF94A3B8),
+                    fontSize: 11,
+                    fontFamily: 'JetBrains Mono',
                   ),
                 ),
               ],
@@ -1602,10 +1585,10 @@ class _SystemLogsPanel extends StatelessWidget {
     return Container(
       height: height,
       decoration: const BoxDecoration(
-        color: Color(0xFF1E1E1E),
-        border: Border(top: BorderSide(color: Colors.blueGrey, width: 2)),
+        color: Color(0xFF0F172A),
+        border: Border(top: BorderSide(color: Color(0xFF1E293B), width: 2)),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1615,10 +1598,10 @@ class _SystemLogsPanel extends StatelessWidget {
               const Text(
                 'SYSTEM LOGS (REAL-TIME)',
                 style: TextStyle(
-                  color: Colors.blueAccent,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 11,
-                  letterSpacing: 1.1,
+                  color: Color(0xFF38BDF8),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 10,
+                  letterSpacing: 1.2,
                 ),
               ),
               if (state.isScanning)
@@ -1627,19 +1610,21 @@ class _SystemLogsPanel extends StatelessWidget {
                   height: 12,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: Colors.blueAccent,
+                    color: Color(0xFF38BDF8),
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Expanded(
             child: ListView.builder(
               physics: const NeverScrollableScrollPhysics(),
               itemCount: visibleLogs.length,
               itemBuilder: (context, index) {
                 final log = visibleLogs[index];
-                Color logColor = Colors.greenAccent;
+                Color logColor = const Color(
+                  0xFF00FF41,
+                ); // Cockpit green defaults
                 if (log.contains('OTOMASYON')) {
                   logColor = Colors.orangeAccent;
                 }
@@ -1648,14 +1633,14 @@ class _SystemLogsPanel extends StatelessWidget {
                 }
 
                 return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 1),
+                  padding: const EdgeInsets.symmetric(vertical: 2),
                   child: Text(
                     '> $log',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: logColor,
-                      fontFamily: 'Courier New',
+                      fontFamily: 'JetBrains Mono',
                       fontSize: 11,
                       fontWeight: log.contains('OTOMASYON')
                           ? FontWeight.bold
