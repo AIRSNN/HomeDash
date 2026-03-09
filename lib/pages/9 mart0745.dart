@@ -1,4 +1,4 @@
-/// MADAM Projesi - Prototype-aligned Dashboard App Shell (Faz 3 - Final UI V4 Device Logs + Layout Fix + Hover Effect)
+/// MADAM Projesi - Prototype-aligned Dashboard App Shell
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../models/device_info.dart';
+import '../services/device_command_service.dart';
 import '../state/dashboard_state.dart';
 
 class DashboardPage extends StatefulWidget {
@@ -76,7 +77,7 @@ class _DashboardPageState extends State<DashboardPage> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final screenHeight = constraints.maxHeight;
-            final logsHeight = screenHeight < 820 ? 80.0 : 92.0; 
+            final logsHeight = screenHeight < 820 ? 92.0 : 108.0;
 
             return Row(
               children: [
@@ -155,7 +156,7 @@ class _MainContent extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxHeight < 760;
-        final deckHeight = compact ? 530.0 : 610.0; 
+        final deckHeight = compact ? 540.0 : 640.0;
 
         return SingleChildScrollView(
           child: ConstrainedBox(
@@ -331,46 +332,29 @@ class _PrototypeDeviceCard extends StatelessWidget {
 
   const _PrototypeDeviceCard({required this.state, required this.device});
 
-  Future<void> _confirmReboot(BuildContext context, String ip) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            const Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
-            const SizedBox(width: 8),
-            Text('Sistemi Reboot Et', style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 18)),
-          ],
-        ),
-        content: Text(
-          '$ip adresli cihazı yeniden başlatmak istediğinize emin misiniz?\nGeçici bağlantı kopukluğu yaşanacaktır.',
-          style: GoogleFonts.inter(fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('İptal', style: GoogleFonts.inter(color: Colors.grey[600], fontWeight: FontWeight.bold)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            child: Text('Reboot', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-          ),
-        ],
+  Future<void> _handleToggle(BuildContext context, String ip) async {
+    final service = DeviceCommandService();
+    final success = await service.sendCommand(ip, {
+      'action': 'toggle',
+      'target': 'relay_1',
+      'deviceIp': ip,
+    });
+
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(success ? 'Komut iletildi' : 'Baglanti hatasi'),
+        backgroundColor: success ? Colors.blueGrey : Colors.red,
+        duration: const Duration(seconds: 1),
       ),
     );
-
-    if (confirm == true) {
-      state.rebootDevice(ip);
-    }
   }
 
-  void _showDeviceDetailsDialog(BuildContext context, dynamic status, bool isOnline) {
+  void _showDeviceDetailsDialog(
+    BuildContext context,
+    dynamic status,
+    bool isOnline,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -383,7 +367,10 @@ class _PrototypeDeviceCard extends StatelessWidget {
             Text('Rol: ${device.role}'),
             Text('Durum: ${isOnline ? 'Online' : 'Offline'}'),
             const Divider(),
-            const Text('Ham JSON Verisi:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text(
+              'Ham JSON Verisi:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
             Container(
               width: double.infinity,
@@ -410,21 +397,22 @@ class _PrototypeDeviceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final status = state.deviceStatuses[device.ip];
     final isOnline = status?.isOnline ?? false;
+    final relay1Active = status?.isRelayActive('relay_1') ?? false;
     final pingMs = state.pingLatencies[device.ip] ?? 0;
-    
-    final List<String> dLogs = state.deviceLogs[device.ip] ?? [];
-    final String log1 = dLogs.isNotEmpty ? dLogs[0] : '> _ Awaiting telemetry...';
-    final String log2 = dLogs.length > 1 ? dLogs[1] : '';
-
-    final deviceIcon = device.role.toLowerCase().contains('primary') ? Icons.sensors_rounded : Icons.router_rounded;
+    final lastLog = state.logs.isNotEmpty
+        ? state.logs.first
+        : '[SYSTEM] Awaiting stream...';
+    final deviceIcon = device.role.toLowerCase().contains('primary')
+        ? Icons.sensors_rounded
+        : Icons.router_rounded;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxHeight < 400;
         final outerPadding = compact ? 16.0 : 20.0;
-        final telemetryHeight = compact ? 44.0 : 70.0; 
+        final telemetryHeight = compact ? 44.0 : 70.0;
         final iconBoxSize = compact ? 42.0 : 48.0;
-        final bottomLogHeight = compact ? 56.0 : 88.0; 
+        final bottomLogHeight = compact ? 56.0 : 88.0;
 
         return AnimatedOpacity(
           duration: const Duration(milliseconds: 220),
@@ -434,12 +422,16 @@ class _PrototypeDeviceCard extends StatelessWidget {
               color: Colors.white,
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
-                color: isOnline ? const Color(0xFF5B13EC).withOpacity(0.3) : const Color(0xFFE2E8F0),
+                color: isOnline
+                    ? const Color(0xFF5B13EC).withOpacity(0.3)
+                    : const Color(0xFFE2E8F0),
                 width: isOnline ? 1.5 : 1.0,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: isOnline ? const Color(0xFF5B13EC).withOpacity(0.12) : Colors.black.withOpacity(0.02),
+                  color: isOnline
+                      ? const Color(0xFF5B13EC).withOpacity(0.12)
+                      : Colors.black.withOpacity(0.02),
                   blurRadius: 30,
                   offset: const Offset(0, 12),
                 ),
@@ -449,9 +441,15 @@ class _PrototypeDeviceCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: EdgeInsets.fromLTRB(outerPadding, outerPadding, outerPadding, outerPadding - 4),
+                  padding: EdgeInsets.fromLTRB(
+                    outerPadding,
+                    outerPadding,
+                    outerPadding,
+                    outerPadding - 4,
+                  ),
                   child: Column(
                     children: [
+                      // Üst Header: İkon, Başlık, Güç Butonu
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -459,13 +457,19 @@ class _PrototypeDeviceCard extends StatelessWidget {
                             width: iconBoxSize,
                             height: iconBoxSize,
                             decoration: BoxDecoration(
-                              color: isOnline ? const Color(0xFF5B13EC).withOpacity(0.1) : const Color(0xFFF8F9FB),
+                              color: isOnline
+                                  ? const Color(0xFF5B13EC).withOpacity(0.1)
+                                  : const Color(0xFFF8F9FB),
                               borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              border: Border.all(
+                                color: const Color(0xFFE2E8F0),
+                              ),
                             ),
                             child: Icon(
                               deviceIcon,
-                              color: isOnline ? const Color(0xFF5B13EC) : const Color(0xFF64748B),
+                              color: isOnline
+                                  ? const Color(0xFF5B13EC)
+                                  : const Color(0xFF64748B),
                               size: compact ? 22 : 26,
                             ),
                           ),
@@ -487,15 +491,24 @@ class _PrototypeDeviceCard extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 4),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: isOnline ? const Color(0xFF5B13EC).withOpacity(0.05) : const Color(0xFFF1F5F9),
+                                    color: isOnline
+                                        ? const Color(
+                                            0xFF5B13EC,
+                                          ).withOpacity(0.05)
+                                        : const Color(0xFFF1F5F9),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Text(
                                     device.ip,
                                     style: GoogleFonts.jetBrainsMono(
-                                      color: isOnline ? const Color(0xFF5B13EC) : const Color(0xFF64748B),
+                                      color: isOnline
+                                          ? const Color(0xFF5B13EC)
+                                          : const Color(0xFF64748B),
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -508,19 +521,27 @@ class _PrototypeDeviceCard extends StatelessWidget {
                             width: compact ? 34 : 38,
                             height: compact ? 34 : 38,
                             child: IconButton(
-                              tooltip: 'Sistemi Yeniden Başlat (Reboot)',
                               padding: EdgeInsets.zero,
-                              onPressed: isOnline ? () => _confirmReboot(context, device.ip) : null,
+                              onPressed: () =>
+                                  _handleToggle(context, device.ip),
                               style: IconButton.styleFrom(
-                                backgroundColor: const Color(0xFFFEF2F2),
-                                foregroundColor: const Color(0xFFDC2626),
+                                backgroundColor: isOnline
+                                    ? const Color(0xFF5B13EC)
+                                    : const Color(0xFFF1F5F9),
+                                foregroundColor: isOnline
+                                    ? Colors.white
+                                    : const Color(0xFF94A3B8),
                               ),
-                              icon: Icon(Icons.restart_alt_rounded, size: compact ? 18 : 20),
+                              icon: Icon(
+                                Icons.power_settings_new_rounded,
+                                size: compact ? 18 : 20,
+                              ),
                             ),
                           ),
                         ],
                       ),
                       SizedBox(height: compact ? 12 : 16),
+                      // 3'lü Pill Menüsü
                       Container(
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
@@ -532,22 +553,64 @@ class _PrototypeDeviceCard extends StatelessWidget {
                           children: [
                             Expanded(
                               child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 6,
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(8),
-                                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 1))],
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.05),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 1),
+                                    ),
+                                  ],
                                 ),
-                                child: Center(child: Text('USAGE', style: GoogleFonts.inter(color: const Color(0xFF5B13EC), fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 0.5))),
+                                child: Center(
+                                  child: Text(
+                                    'USAGE',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFF5B13EC),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
-                            Expanded(child: Center(child: Text('DEVICE', style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 0.5)))),
-                            Expanded(child: Center(child: Text('SETTING', style: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 0.5)))),
+                            Expanded(
+                              child: Center(
+                                child: Text(
+                                  'DEVICE',
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFF94A3B8),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: Center(
+                                child: Text(
+                                  'SETTING',
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFF94A3B8),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
-                      SizedBox(height: compact ? 16 : 20),
-                      
+                      SizedBox(height: compact ? 16 : 24),
+                      // Latency ve Relay State Metinleri
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -559,60 +622,19 @@ class _PrototypeDeviceCard extends StatelessWidget {
                             isLeft: true,
                           ),
                           _MetricTile(
-                            label: 'STATE',
-                            value: isOnline ? 'Online' : 'Offline',
-                            accent: isOnline ? const Color(0xFF00FF41) : const Color(0xFF94A3B8),
+                            label: 'RELAY STATE',
+                            value: relay1Active ? 'Active' : 'Standby',
+                            accent: const Color(0xFF0EA5E9), // Cyan
                             compact: compact,
                             isLeft: false,
                           ),
                         ],
                       ),
-                      
-                      SizedBox(height: compact ? 12 : 16),
-
-                      SizedBox(
-                        height: compact ? 48 : 54, 
-                        child: Row(
-                          children: [
-                            if (device.role.contains('primary')) ...[
-                              Expanded(
-                                child: _RelayControlTile(
-                                  label: 'CH 1',
-                                  isActive: status?.isRelayActive('relay_1') ?? false,
-                                  isOnline: isOnline,
-                                  onTap: () => state.toggleRelay(device.ip, 'relay_1'),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _RelayControlTile(
-                                  label: 'CH 2',
-                                  isActive: status?.isRelayActive('relay_2') ?? false,
-                                  isOnline: isOnline,
-                                  onTap: () => state.toggleRelay(device.ip, 'relay_2'),
-                                ),
-                              ),
-                            ] else ...[
-                              Expanded(
-                                child: _RelayControlTile(
-                                  label: 'RÖLE',
-                                  isActive: status?.isRelayActive('relay_1') ?? false,
-                                  isOnline: isOnline,
-                                  onTap: () => state.toggleRelay(device.ip, 'relay_1'),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(child: _TempSensorTile(status: status, isOnline: isOnline)),
-                              const SizedBox(width: 8),
-                              Expanded(child: _MotionSensorTile(status: status, isOnline: isOnline)),
-                            ]
-                          ],
-                        ),
-                      ),
                     ],
                   ),
                 ),
                 const Spacer(),
+                // Yeni 8'li Dikdörtgen Dalga Formu
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: outerPadding),
                   child: _WaveformDisplay(
@@ -621,41 +643,46 @@ class _PrototypeDeviceCard extends StatelessWidget {
                     isOnline: isOnline,
                   ),
                 ),
-                const SizedBox(height: 12), 
+                const SizedBox(height: 12), // DALGA ILE LOG ARASINDAKI BOSLUK
+                // Dark Log Strip
                 Container(
                   width: double.infinity,
                   height: bottomLogHeight,
                   decoration: const BoxDecoration(
-                    color: Color(0xFF0F172A), 
-                    borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
+                    color: Color(0xFF0F172A), // Tailwind slate-900
+                    borderRadius: BorderRadius.vertical(
+                      bottom: Radius.circular(22),
+                    ),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   child: Row(
                     children: [
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.start,
                           children: [
                             Text(
-                              log1,
-                              maxLines: 1,
+                              lastLog,
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.jetBrainsMono(
-                                color: isOnline ? const Color(0xFF00FF41) : const Color(0xFF94A3B8), 
+                                color: const Color(0xFF00FF41), // Cockpit Green
                                 fontSize: 10,
-                                fontWeight: log1.contains('CMD') || log1.contains('SYS') ? FontWeight.bold : FontWeight.normal,
                               ),
                             ),
-                            if (log2.isNotEmpty) ...[
+                            if (isOnline) ...[
                               const SizedBox(height: 4),
                               Text(
-                                log2,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                                '> _ Awaiting sync...',
                                 style: GoogleFonts.jetBrainsMono(
-                                  color: isOnline ? const Color(0xFF00FF41).withOpacity(0.6) : const Color(0xFF94A3B8).withOpacity(0.6), 
-                                  fontSize: 9,
+                                  color: const Color(
+                                    0xFF00FF41,
+                                  ).withOpacity(0.7),
+                                  fontSize: 10,
                                 ),
                               ),
                             ],
@@ -665,8 +692,16 @@ class _PrototypeDeviceCard extends StatelessWidget {
                       Align(
                         alignment: Alignment.bottomRight,
                         child: IconButton(
-                          onPressed: () => _showDeviceDetailsDialog(context, status, isOnline),
-                          icon: const Icon(Icons.analytics_outlined, color: Colors.white54, size: 18),
+                          onPressed: () => _showDeviceDetailsDialog(
+                            context,
+                            status,
+                            isOnline,
+                          ),
+                          icon: const Icon(
+                            Icons.analytics_outlined,
+                            color: Colors.white54,
+                            size: 18,
+                          ),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
                         ),
@@ -683,132 +718,7 @@ class _PrototypeDeviceCard extends StatelessWidget {
   }
 }
 
-class _RelayControlTile extends StatelessWidget {
-  final String label;
-  final bool isActive;
-  final bool isOnline;
-  final VoidCallback onTap;
-
-  const _RelayControlTile({
-    required this.label,
-    required this.isActive,
-    required this.isOnline,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: isOnline ? onTap : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(
-          color: !isOnline ? const Color(0xFFF1F5F9) : isActive ? const Color(0xFF5B13EC) : const Color(0xFFF8F9FB),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isActive && isOnline ? const Color(0xFF5B13EC) : const Color(0xFFE2E8F0),
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.power_settings_new_rounded,
-              size: 18,
-              color: !isOnline ? const Color(0xFF94A3B8) : isActive ? Colors.white : const Color(0xFF64748B),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                color: !isOnline ? const Color(0xFF94A3B8) : isActive ? Colors.white : const Color(0xFF64748B),
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TempSensorTile extends StatelessWidget {
-  final dynamic status;
-  final bool isOnline;
-
-  const _TempSensorTile({required this.status, required this.isOnline});
-
-  @override
-  Widget build(BuildContext context) {
-    final String tempStr = status?.temperature != null && status?.temperature > 0 ? '${status!.temperature}°C' : '--';
-
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FB),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.thermostat_rounded, size: 18, color: Color(0xFF0EA5E9)),
-          const SizedBox(height: 4),
-          Text(
-            isOnline ? tempStr : '--',
-            style: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A)),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MotionSensorTile extends StatelessWidget {
-  final dynamic status;
-  final bool isOnline;
-
-  const _MotionSensorTile({required this.status, required this.isOnline});
-
-  @override
-  Widget build(BuildContext context) {
-    final bool hasMotion = status?.motionStatus == 'detected';
-
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FB),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: !isOnline ? Colors.grey : (hasMotion ? Colors.redAccent : const Color(0xFF00FF41)),
-              boxShadow: hasMotion ? [BoxShadow(color: Colors.redAccent.withOpacity(0.5), blurRadius: 6)] : null,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            isOnline ? (hasMotion ? 'MOTION' : 'CLEAR') : '--',
-            style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.bold, color: const Color(0xFF64748B)),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
+// Yeni entegre edilen, HTML referansına birebir uyan 8 barlı Dalga Formu Widget'ı
 class _WaveformDisplay extends StatelessWidget {
   final int pingMs;
   final double height;
@@ -822,7 +732,10 @@ class _WaveformDisplay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Referans HTML dosyasındaki yükseklik oranları (8 adet)
     final baseHeights = [0.3, 0.5, 0.8, 0.4, 0.2, 0.6, 0.9, 0.5];
+
+    // Canlılık hissi vermek için ping süresine bağlı ufak bir varyasyon
     final variation = (pingMs % 5) * 0.02;
 
     return SizedBox(
@@ -830,10 +743,14 @@ class _WaveformDisplay extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: List.generate(8, (index) {
-          final h = (baseHeights[index] + (index % 2 == 0 ? variation : -variation)).clamp(0.1, 1.0);
+          final h =
+              (baseHeights[index] + (index % 2 == 0 ? variation : -variation))
+                  .clamp(0.1, 1.0);
           return Expanded(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4.0), 
+              padding: const EdgeInsets.symmetric(
+                horizontal: 4.0,
+              ), // Barlar arası boşluk
               child: FractionallySizedBox(
                 alignment: Alignment.bottomCenter,
                 heightFactor: isOnline ? h : 0.1,
@@ -843,12 +760,18 @@ class _WaveformDisplay extends StatelessWidget {
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        const Color(0xFF5B13EC).withOpacity(isOnline ? 0.8 : 0.3),
-                        const Color(0xFF06B6D4).withOpacity(isOnline ? 0.4 : 0.1),
+                        const Color(
+                          0xFF5B13EC,
+                        ).withOpacity(isOnline ? 0.8 : 0.3),
+                        const Color(
+                          0xFF06B6D4,
+                        ).withOpacity(isOnline ? 0.4 : 0.1),
                       ],
                     ),
                     borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(2.5), 
+                      top: Radius.circular(
+                        2.5,
+                      ), // Üst köşelerde hafif yuvarlatma (rounded-t-sm)
                     ),
                   ),
                 ),
@@ -879,7 +802,9 @@ class _MetricTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: isLeft ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+      crossAxisAlignment: isLeft
+          ? CrossAxisAlignment.start
+          : CrossAxisAlignment.end,
       children: [
         Text(
           label,
@@ -897,7 +822,7 @@ class _MetricTile extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: GoogleFonts.inter(
             color: accent,
-            fontSize: compact ? 20 : 24, 
+            fontSize: compact ? 20 : 24,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -1044,15 +969,35 @@ class _SidebarMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Column(
       children: [
-        _SidebarItem(icon: Icons.dashboard_rounded, label: 'Dashboard', isActive: false),
+        _SidebarItem(
+          icon: Icons.dashboard_rounded,
+          label: 'Dashboard',
+          isActive: false,
+        ),
         SizedBox(height: 8),
-        _SidebarItem(icon: Icons.memory_rounded, label: 'Stations', isActive: true),
+        _SidebarItem(
+          icon: Icons.memory_rounded,
+          label: 'Stations',
+          isActive: true,
+        ),
         SizedBox(height: 8),
-        _SidebarItem(icon: Icons.auto_awesome_rounded, label: 'Automations', isActive: false),
+        _SidebarItem(
+          icon: Icons.auto_awesome_rounded,
+          label: 'Automations',
+          isActive: false,
+        ),
         SizedBox(height: 8),
-        _SidebarItem(icon: Icons.analytics_rounded, label: 'Library', isActive: false),
+        _SidebarItem(
+          icon: Icons.analytics_rounded,
+          label: 'Library',
+          isActive: false,
+        ),
         SizedBox(height: 8),
-        _SidebarItem(icon: Icons.settings_rounded, label: 'Settings', isActive: false),
+        _SidebarItem(
+          icon: Icons.settings_rounded,
+          label: 'Settings',
+          isActive: false,
+        ),
       ],
     );
   }
@@ -1071,8 +1016,12 @@ class _SidebarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = isActive ? const Color(0xFF5B13EC).withOpacity(0.1) : Colors.transparent;
-    final fgColor = isActive ? const Color(0xFF5B13EC) : const Color(0xFF64748B);
+    final bgColor = isActive
+        ? const Color(0xFF5B13EC).withOpacity(0.1)
+        : Colors.transparent;
+    final fgColor = isActive
+        ? const Color(0xFF5B13EC)
+        : const Color(0xFF64748B);
 
     return Material(
       color: Colors.transparent,
@@ -1105,87 +1054,59 @@ class _SidebarItem extends StatelessWidget {
   }
 }
 
-// --- YENİ: HOVER (PARLAMA) EFEKTLİ PROFİL KARTI ---
-class _SidebarProfile extends StatefulWidget {
+class _SidebarProfile extends StatelessWidget {
   const _SidebarProfile();
 
   @override
-  State<_SidebarProfile> createState() => _SidebarProfileState();
-}
-
-class _SidebarProfileState extends State<_SidebarProfile> {
-  bool _isHovered = false;
-
-  @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300), // HTML'deki duration-300 karşılığı
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            // HTML hover:border-cockpit-green karşılığı
-            color: _isHovered ? const Color(0xFF00FF41) : const Color(0xFFE2E8F0),
-            width: 1,
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Color(0xFFF1F5F9),
+            ),
+            child: const Icon(
+              Icons.person_rounded,
+              color: Color(0xFF94A3B8),
+              size: 24,
+            ),
           ),
-          boxShadow: _isHovered
-              ? [
-                  BoxShadow(
-                    // HTML hover:shadow-[0_0_15px_rgba(0,255,65,0.3)] karşılığı
-                    color: const Color(0xFF00FF41).withOpacity(0.3),
-                    blurRadius: 15,
-                    offset: const Offset(0, 0),
-                  )
-                ]
-              : [], // Hover yoksa gölge yok
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: Color(0xFFF1F5F9),
-              ),
-              child: const Icon(
-                Icons.person_rounded,
-                color: Color(0xFF94A3B8),
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Madam User',
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF0F172A),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                    ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Madam User',
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF0F172A),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'v2-stable',
-                    style: GoogleFonts.jetBrainsMono(
-                      color: const Color(0xFF64748B),
-                      fontSize: 11,
-                    ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'v2-stable',
+                  style: GoogleFonts.jetBrainsMono(
+                    color: const Color(0xFF64748B),
+                    fontSize: 11,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1229,7 +1150,20 @@ class _TopHeaderState extends State<_TopHeader> {
   }
 
   String _formatDate(DateTime value) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     final day = value.day.toString().padLeft(2, '0');
     final month = months[value.month - 1];
     final year = value.year.toString();
@@ -1243,7 +1177,9 @@ class _TopHeaderState extends State<_TopHeader> {
       padding: const EdgeInsets.symmetric(horizontal: 32),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.80),
-        border: const Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
+        border: const Border(
+          bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+        ),
       ),
       child: Row(
         children: [
@@ -1251,55 +1187,101 @@ class _TopHeaderState extends State<_TopHeader> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Active Stations', style: GoogleFonts.inter(color: const Color(0xFF0F172A), fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+              Text(
+                'Active Stations',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF0F172A),
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
+                ),
+              ),
               const SizedBox(height: 4),
-              Text('Smart home devices real-time telemetry.', style: GoogleFonts.inter(color: const Color(0xFF64748B), fontSize: 13, fontWeight: FontWeight.w500)),
+              Text(
+                'Smart home devices real-time telemetry.',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF64748B),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ],
           ),
           const SizedBox(width: 24),
           if (widget.state.isPolling)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-              child: Text('Automation Active', style: GoogleFonts.inter(color: Colors.green, fontSize: 11, fontWeight: FontWeight.bold)),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'Automation Active',
+                style: GoogleFonts.inter(
+                  color: Colors.green,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           const Spacer(),
           if (widget.state.isPolling)
             ElevatedButton.icon(
               onPressed: widget.state.stopPingLoop,
               icon: const Icon(Icons.stop_rounded, size: 18),
-              label: Text('Stop', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+              label: Text(
+                'Stop',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+              ),
               style: ElevatedButton.styleFrom(
                 elevation: 0,
                 backgroundColor: Colors.redAccent.withOpacity(0.1),
                 foregroundColor: Colors.redAccent,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             )
           else
             ElevatedButton.icon(
               onPressed: widget.state.startPingLoop,
               icon: const Icon(Icons.play_arrow_rounded, size: 18),
-              label: Text('Start', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+              label: Text(
+                'Start',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+              ),
               style: ElevatedButton.styleFrom(
                 elevation: 0,
                 backgroundColor: const Color(0xFF5B13EC),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           const SizedBox(width: 12),
           OutlinedButton.icon(
             onPressed: widget.state.gracefulShutdownAndExit,
             icon: const Icon(Icons.exit_to_app_rounded, size: 18),
-            label: Text('Exit', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+            label: Text(
+              'Exit',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+            ),
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.redAccent,
               side: const BorderSide(color: Colors.redAccent),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
           const SizedBox(width: 24),
@@ -1307,9 +1289,24 @@ class _TopHeaderState extends State<_TopHeader> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(_formatTime(_now), style: GoogleFonts.inter(color: const Color(0xFF0F172A), fontSize: 20, fontWeight: FontWeight.w800)),
+              Text(
+                _formatTime(_now),
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF0F172A),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
               const SizedBox(height: 2),
-              Text(_formatDate(_now), style: GoogleFonts.inter(color: const Color(0xFF64748B), fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.5)),
+              Text(
+                _formatDate(_now),
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF64748B),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.5,
+                ),
+              ),
             ],
           ),
           const SizedBox(width: 24),
@@ -1325,15 +1322,30 @@ class _TopHeaderState extends State<_TopHeader> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: const Color(0xFFE2E8F0)),
-                  boxShadow: [BoxShadow(color: const Color(0xFF5B13EC).withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 4))],
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF5B13EC).withOpacity(0.08),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                child: const Icon(Icons.notifications_rounded, color: Color(0xFF64748B)),
+                child: const Icon(
+                  Icons.notifications_rounded,
+                  color: Color(0xFF64748B),
+                ),
               ),
               Positioned(
-                top: 10, right: 12,
+                top: 10,
+                right: 12,
                 child: Container(
-                  width: 8, height: 8,
-                  decoration: BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 1.5)),
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
                 ),
               ),
             ],
@@ -1360,7 +1372,11 @@ class _RightPanel extends StatelessWidget {
           borderRadius: BorderRadius.circular(28),
           border: Border.all(color: const Color(0xFFE9ECF5)),
           boxShadow: [
-            BoxShadow(color: const Color(0xFF5B13EC).withOpacity(0.08), blurRadius: 40, offset: const Offset(0, 10)),
+            BoxShadow(
+              color: const Color(0xFF5B13EC).withOpacity(0.08),
+              blurRadius: 40,
+              offset: const Offset(0, 10),
+            ),
           ],
         ),
         child: Column(
@@ -1368,8 +1384,26 @@ class _RightPanel extends StatelessWidget {
           children: [
             Row(
               children: [
-                Expanded(child: Text('Favorites', style: GoogleFonts.inter(color: const Color(0xFF0F172A), fontSize: 20, fontWeight: FontWeight.w800))),
-                IconButton(onPressed: () {}, icon: const Icon(Icons.star_rounded, color: Color(0xFF5B13EC)), style: IconButton.styleFrom(backgroundColor: const Color(0xFF5B13EC).withOpacity(0.1))),
+                Expanded(
+                  child: Text(
+                    'Favorites',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF0F172A),
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(
+                    Icons.star_rounded,
+                    color: Color(0xFF5B13EC),
+                  ),
+                  style: IconButton.styleFrom(
+                    backgroundColor: const Color(0xFF5B13EC).withOpacity(0.1),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 20),
@@ -1377,11 +1411,26 @@ class _RightPanel extends StatelessWidget {
               child: ListView(
                 physics: const BouncingScrollPhysics(),
                 children: const [
-                  _FavoriteTile(title: 'ESP32C6 Master Node', subtitle: '192.168.55.29', icon: Icons.router_rounded, isActive: true),
+                  _FavoriteTile(
+                    title: 'ESP32C6 Master Node',
+                    subtitle: '192.168.55.29',
+                    icon: Icons.router_rounded,
+                    isActive: true,
+                  ),
                   SizedBox(height: 12),
-                  _FavoriteTile(title: 'ESP8266 Actuator Node', subtitle: '192.168.55.20', icon: Icons.memory_rounded, isActive: true),
+                  _FavoriteTile(
+                    title: 'ESP8266 Actuator Node',
+                    subtitle: '192.168.55.20',
+                    icon: Icons.memory_rounded,
+                    isActive: true,
+                  ),
                   SizedBox(height: 12),
-                  _FavoriteTile(title: 'Edge Sensor 02', subtitle: '192.168.55.21', icon: Icons.cloud_off_rounded, isActive: false),
+                  _FavoriteTile(
+                    title: 'Edge Sensor 02',
+                    subtitle: '192.168.55.21',
+                    icon: Icons.cloud_off_rounded,
+                    isActive: false,
+                  ),
                 ],
               ),
             ),
@@ -1390,37 +1439,90 @@ class _RightPanel extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [Color(0xFF5B13EC), Color(0xFF06B6D4)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF5B13EC), Color(0xFF06B6D4)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 borderRadius: BorderRadius.circular(22),
-                boxShadow: [BoxShadow(color: const Color(0xFF5B13EC).withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10))],
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF5B13EC).withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
               child: Stack(
                 children: [
-                  const Positioned(right: -20, bottom: -20, child: Icon(Icons.notifications_active_rounded, size: 80, color: Colors.white10)),
+                  const Positioned(
+                    right: -20,
+                    bottom: -20,
+                    child: Icon(
+                      Icons.notifications_active_rounded,
+                      size: 80,
+                      color: Colors.white10,
+                    ),
+                  ),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.crisis_alert_rounded, color: Color(0xFFFCA5A5), size: 20),
+                          const Icon(
+                            Icons.crisis_alert_rounded,
+                            color: Color(0xFFFCA5A5),
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
-                          Text('Security Alert', style: GoogleFonts.inter(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
+                          Text(
+                            'Security Alert',
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 12),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.redAccent.withOpacity(0.3),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.redAccent.withOpacity(0.5)),
+                          border: Border.all(
+                            color: Colors.redAccent.withOpacity(0.5),
+                          ),
                         ),
-                        child: Text('Motion Detected!', style: GoogleFonts.inter(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                        child: Text(
+                          'Motion Detected!',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 14),
-                      Text('Zone: Outdoor Entryway', style: GoogleFonts.jetBrainsMono(color: Colors.white70, fontSize: 11)),
+                      Text(
+                        'Zone: Outdoor Entryway',
+                        style: GoogleFonts.jetBrainsMono(
+                          color: Colors.white70,
+                          fontSize: 11,
+                        ),
+                      ),
                       const SizedBox(height: 4),
-                      Text('Time: 23:14:05', style: GoogleFonts.jetBrainsMono(color: Colors.white54, fontSize: 11)),
+                      Text(
+                        'Time: 23:14:05',
+                        style: GoogleFonts.jetBrainsMono(
+                          color: Colors.white54,
+                          fontSize: 11,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -1453,19 +1555,33 @@ class _FavoriteTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: isActive ? const Color(0xFFF8F9FB) : Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: isActive ? const Color(0xFFE2E8F0) : Colors.transparent),
+        border: Border.all(
+          color: isActive ? const Color(0xFFE2E8F0) : Colors.transparent,
+        ),
       ),
       child: Row(
         children: [
           Container(
-            width: 44, height: 44,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: const Color(0xFFE2E8F0)),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            child: Icon(icon, color: isActive ? const Color(0xFF94A3B8) : const Color(0xFFCBD5E1)),
+            child: Icon(
+              icon,
+              color: isActive
+                  ? const Color(0xFF94A3B8)
+                  : const Color(0xFFCBD5E1),
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -1475,15 +1591,57 @@ class _FavoriteTile extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: GoogleFonts.inter(color: isActive ? const Color(0xFF0F172A) : const Color(0xFF64748B), fontSize: 14, fontWeight: FontWeight.w700))),
+                    Expanded(
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          color: isActive
+                              ? const Color(0xFF0F172A)
+                              : const Color(0xFF64748B),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
                     if (isActive)
-                      Container(width: 8, height: 8, decoration: BoxDecoration(color: const Color(0xFF00FF41), shape: BoxShape.circle, boxShadow: [BoxShadow(color: const Color(0xFF00FF41).withOpacity(0.6), blurRadius: 8, spreadRadius: 1)])),
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF00FF41),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF00FF41).withOpacity(0.6),
+                              blurRadius: 8,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                      ),
                     if (!isActive)
-                      Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFFCBD5E1), shape: BoxShape.circle)),
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: const Color(0xFFCBD5E1),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: GoogleFonts.jetBrainsMono(color: const Color(0xFF94A3B8), fontSize: 11)),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.jetBrainsMono(
+                    color: const Color(0xFF94A3B8),
+                    fontSize: 11,
+                  ),
+                ),
               ],
             ),
           ),
@@ -1516,9 +1674,24 @@ class _SystemLogsPanel extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('SYSTEM LOGS (REAL-TIME)', style: GoogleFonts.inter(color: const Color(0xFF38BDF8), fontWeight: FontWeight.w800, fontSize: 10, letterSpacing: 1.2)),
+              Text(
+                'SYSTEM LOGS (REAL-TIME)',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF38BDF8),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 10,
+                  letterSpacing: 1.2,
+                ),
+              ),
               if (state.isScanning)
-                const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF38BDF8))),
+                const SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Color(0xFF38BDF8),
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 8),
@@ -1528,16 +1701,27 @@ class _SystemLogsPanel extends StatelessWidget {
               itemCount: visibleLogs.length,
               itemBuilder: (context, index) {
                 final log = visibleLogs[index];
-                Color logColor = const Color(0xFF00FF41); 
-                if (log.contains('OTOMASYON')) logColor = Colors.orangeAccent;
-                if (log.contains('HATA')) logColor = Colors.redAccent;
+                Color logColor = const Color(0xFF00FF41);
+                if (log.contains('OTOMASYON')) {
+                  logColor = Colors.orangeAccent;
+                }
+                if (log.contains('HATA')) {
+                  logColor = Colors.redAccent;
+                }
 
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 2),
                   child: Text(
                     '> $log',
-                    maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.jetBrainsMono(color: logColor, fontSize: 11, fontWeight: log.contains('OTOMASYON') ? FontWeight.bold : FontWeight.normal),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.jetBrainsMono(
+                      color: logColor,
+                      fontSize: 11,
+                      fontWeight: log.contains('OTOMASYON')
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                    ),
                   ),
                 );
               },

@@ -3,24 +3,25 @@
 #include <ArduinoJson.h>
 
 // --- AĞ AYARLARI ---
-const char* ssid = "llama_iot";        // Kendi SSID'nizi girin
-const char* password = "testteam";  // Kendi şifrenizi girin
+const char* ssid = "llama_iot";
+const char* password = "testteam";
 
-// MADAM Ağ Topolojisine Göre Statik IP (Cihaz 1: .20)
 IPAddress local_IP(192, 168, 55, 20);
-IPAddress gateway(192, 168, 55, 1);    // Router IP'niz farklıysa güncelleyin
+IPAddress gateway(192, 168, 55, 1);
 IPAddress subnet(255, 255, 255, 0);
 
-// MADAM API Portu
 ESP8266WebServer server(8080);
 
 // --- DONANIM AYARLARI ---
-const int relay1Pin = 5; // NodeMCU'da D1 pini (GPIO5)
-bool relay1State = false; // Başlangıçta kapalı
+const int relay1Pin = 5; // D1
+const int pirPin = 4;    // D2 (PIR Sensörü Data)
 
-// 1. GET /status (MADAM'ın cihazı "Online" görmesi için)
+bool relay1State = false;
+bool shouldReboot = false;
+unsigned long rebootTimer = 0;
+
 void handleStatus() {
-  StaticJsonDocument<200> doc;
+  StaticJsonDocument<512> doc;
   doc["deviceIp"] = "192.168.55.20";
   doc["role"] = "relay_node";
   doc["status"] = "online";
@@ -28,82 +29,65 @@ void handleStatus() {
   JsonObject relays = doc.createNestedObject("relays");
   relays["relay_1"] = relay1State ? "on" : "off";
 
+  // SENSÖR VERİLERİ (Flutter Arayüzü İçin)
+  JsonObject sensors = doc.createNestedObject("sensors");
+  sensors["motion"] = (digitalRead(pirPin) == HIGH) ? "detected" : "clear";
+  sensors["temperature"] = 24.5; // Simüle edilmiş ısı
+  sensors["humidity"] = 48.0;
+
   String response;
   serializeJson(doc, response);
   server.send(200, "application/json", response);
 }
 
-// 2. POST /command (MADAM'ın komut göndermesi için)
 void handleCommand() {
-  if (server.hasArg("plain") == false) {
-    server.send(400, "application/json", "{\"error\":\"Body not received\"}");
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json", "{\"error\":\"No body\"}");
     return;
   }
 
   String body = server.arg("plain");
   StaticJsonDocument<256> doc;
-  DeserializationError error = deserializeJson(doc, body);
-
-  if (error) {
-    server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
-    return;
-  }
+  deserializeJson(doc, body);
 
   String action = doc["action"];
   String target = doc["target"];
 
-  // Röle 1 Hedefi İçin Şema Doğrulaması
-  if (target == "relay_1") {
-    if (action == "toggle") {
-      relay1State = !relay1State;
-    } else if (action == "open") {
-      relay1State = true;
-    } else if (action == "close") {
-      relay1State = false;
-    }
-    // Donanımı güncelle
-    digitalWrite(relay1Pin, relay1State ? HIGH : LOW);
-    Serial.println("Röle 1 durumu güncellendi: " + String(relay1State));
+  if (target == "system" && action == "reboot") {
+    server.send(200, "application/json", "{\"result\":\"success\"}");
+    shouldReboot = true;
+    rebootTimer = millis();
+    return;
   }
 
-  // Başarı yanıtı dön
-  server.send(200, "application/json", "{\"result\":\"success\", \"message\":\"Komut uygulandi\"}");
+  if (target == "relay_1") {
+    if (action == "toggle") relay1State = !relay1State;
+    else if (action == "open") relay1State = true;
+    else if (action == "close") relay1State = false;
+    digitalWrite(relay1Pin, relay1State ? HIGH : LOW);
+  }
+
+  server.send(200, "application/json", "{\"result\":\"success\"}");
 }
 
 void setup() {
   Serial.begin(115200);
-  
-  // Pin ayarları
   pinMode(relay1Pin, OUTPUT);
-  digitalWrite(relay1Pin, LOW); // Başlangıçta güvenli durum (kapalı)
+  pinMode(pirPin, INPUT);
+  digitalWrite(relay1Pin, LOW);
 
-  // Ağ yapılandırması
-  if (!WiFi.config(local_IP, gateway, subnet)) {
-    Serial.println("Statik IP yapilandirmasi basarisiz!");
-  }
-  
+  WiFi.config(local_IP, gateway, subnet);
   WiFi.begin(ssid, password);
-  Serial.print("WiFi Baglaniliyor");
-  
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  
-  Serial.println("\nBaglandi!");
-  Serial.print("IP Adresi: ");
-  Serial.println(WiFi.localIP());
+  while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
 
-  // Sunucu Yönlendirmeleri (Endpoints)
   server.on("/status", HTTP_GET, handleStatus);
   server.on("/command", HTTP_POST, handleCommand);
-  
-  // Sunucuyu başlat
   server.begin();
-  Serial.println("HTTP Sunucu 8080 portunda basladi.");
 }
 
 void loop() {
-  // Gelen HTTP isteklerini dinle
   server.handleClient();
+  if (shouldReboot && (millis() - rebootTimer > 1000)) {
+    ESP.restart();
+  }
 }

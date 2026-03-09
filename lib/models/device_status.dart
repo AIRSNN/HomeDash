@@ -1,36 +1,41 @@
-/// MADAM Projesi - ESP Uyumlu Durum Modeli
+/// MADAM Projesi - Cihaz Durum Modeli (v2 - Sensör ve Çoklu Röle Destekli)
 class DeviceStatus {
   bool isOnline;
   Map<String, dynamic>? rawData;
-  DateTime? lastSeen;
 
-  DeviceStatus({this.isOnline = false, this.rawData, this.lastSeen});
+  DeviceStatus({required this.isOnline, this.rawData});
 
-  /// Cihazdan gelen JSON ile modeli günceller
-  void updateFromJson(Map<String, dynamic> json) {
-    isOnline = true;
-    rawData = json;
-    lastSeen = DateTime.now();
-  }
-
-  /// ESP'nin iç içe geçmiş JSON yapısından röle durumunu çeker
-  /// Örnek: rawData['relays']['relay_1'] == "on"
-  bool isRelayActive(String relayKey) {
+  // İstenilen rölenin aktif olup olmadığını kontrol eder
+  bool isRelayActive(String relayId) {
     if (rawData == null || !rawData!.containsKey('relays')) return false;
-    final relays = rawData!['relays'];
-    if (relays is Map<String, dynamic>) {
-      return relays[relayKey] == 'on';
-    }
-    return false;
+    return rawData!['relays'][relayId] == 'on';
   }
 
-  /// UI'da cihazın altında görünen özet metin
-  String getSummary() {
-    if (!isOnline) return 'Çevrimdışı';
-    if (rawData == null) return 'Veri yok';
+  // --- YENİ SENSÖR VERİLERİ ---
 
-    final role = rawData!['role'] ?? 'Cihaz';
-    final status = rawData!['status'] ?? 'Aktif';
-    return '$role ($status)';
+  String get motionStatus {
+    if (rawData == null || !rawData!.containsKey('sensors')) return 'clear';
+    return rawData!['sensors']['motion'] ?? 'clear';
+  }
+
+  double get temperature {
+    if (rawData == null || !rawData!.containsKey('sensors')) return 0.0;
+    return (rawData!['sensors']['temperature'] ?? 0.0).toDouble();
+  }
+
+  double get humidity {
+    if (rawData == null || !rawData!.containsKey('sensors')) return 0.0;
+    return (rawData!['sensors']['humidity'] ?? 0.0).toDouble();
+  }
+
+  // Gelen JSON verisinden modeli oluşturur
+  factory DeviceStatus.fromJson(Map<String, dynamic> json) {
+    return DeviceStatus(isOnline: json['status'] == 'online', rawData: json);
+  }
+
+  // Eski command servisinin hata vermemesi için eksik olan güncelleme metodu eklendi
+  void updateFromJson(Map<String, dynamic> json) {
+    isOnline = json['status'] == 'online';
+    rawData = json;
   }
 }
