@@ -1,4 +1,3 @@
-
 /// MADAM Projesi - Modern Cihaz Kartlari ve Kontrol Paneli
 import 'package:flutter/material.dart';
 import '../state/dashboard_state.dart';

@@ -797,12 +797,13 @@ class _PrototypeDeviceCardState extends State<_PrototypeDeviceCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 1. SABİT ÜST ALAN (Header ve Sekmeler)
                 Padding(
                   padding: EdgeInsets.fromLTRB(
                     outerPadding,
                     outerPadding,
                     outerPadding,
-                    outerPadding - 4,
+                    0, // Alt boşluğu kaldırdık, ScrollView'e devrettik
                   ),
                   child: Column(
                     children: [
@@ -906,30 +907,48 @@ class _PrototypeDeviceCardState extends State<_PrototypeDeviceCard> {
                         },
                       ),
                       SizedBox(height: compact ? 12 : 16),
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 220),
-                        switchInCurve: Curves.easeOutCubic,
-                        switchOutCurve: Curves.easeInCubic,
-                        child: _buildTabContent(
-                          compact: compact,
-                          isOnline: isOnline,
-                          pingMs: pingMs,
-                          status: status,
-                        ),
-                      ),
                     ],
                   ),
                 ),
-                const Spacer(),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: outerPadding),
-                  child: _WaveformDisplay(
-                    pingMs: pingMs,
-                    height: telemetryHeight,
-                    isOnline: isOnline,
+                
+                // 2. ESNEK VE KAYDIRILABİLİR ORTA ALAN (Taşmayı engelleyen zırh)
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.fromLTRB(
+                      outerPadding,
+                      0,
+                      outerPadding,
+                      outerPadding - 4,
+                    ),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      child: _buildTabContent(
+                        compact: compact,
+                        isOnline: isOnline,
+                        pingMs: pingMs,
+                        status: status,
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 12),
+
+                // 3. SABİT ALT BÖLÜM (Ping Grafiği ve Loglar)
+                // Dalga formunu (Waveform) sadece USAGE sekmesinde goster
+                if (_activeTab == _DeviceCardTab.usage) ...[
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: outerPadding),
+                    child: _WaveformDisplay(
+                      pingMs: pingMs,
+                      height: telemetryHeight,
+                      isOnline: isOnline,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                
+                // Sabit Log Alanı
                 Container(
                   width: double.infinity,
                   height: bottomLogHeight,

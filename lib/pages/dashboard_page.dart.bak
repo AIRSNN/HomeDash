@@ -1,4 +1,4 @@
-/// MADAM Projesi - Prototype-aligned Dashboard App Shell
+/// MADAM Projesi - Prototype-aligned Dashboard App Shell (Faz 3 - Final UI V4 Device Logs + Layout Fix + Hover Effect)
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../models/device_info.dart';
-import '../services/device_command_service.dart';
 import '../state/dashboard_state.dart';
 
 class DashboardPage extends StatefulWidget {
@@ -72,12 +71,12 @@ class _DashboardPageState extends State<DashboardPage> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FB), // background-light
+      backgroundColor: const Color(0xFFF8F9FB),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
             final screenHeight = constraints.maxHeight;
-            final logsHeight = screenHeight < 820 ? 92.0 : 108.0;
+            final logsHeight = screenHeight < 820 ? 80.0 : 92.0;
 
             return Row(
               children: [
@@ -156,7 +155,7 @@ class _MainContent extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxHeight < 760;
-        final deckHeight = compact ? 540.0 : 640.0;
+        final deckHeight = compact ? 530.0 : 610.0;
 
         return SingleChildScrollView(
           child: ConstrainedBox(
@@ -326,28 +325,75 @@ class _DeckSimpleHeader extends StatelessWidget {
   }
 }
 
-class _PrototypeDeviceCard extends StatelessWidget {
+enum _DeviceCardTab { usage, device, setting }
+
+class _PrototypeDeviceCard extends StatefulWidget {
   final DashboardState state;
   final DeviceInfo device;
 
   const _PrototypeDeviceCard({required this.state, required this.device});
 
-  Future<void> _handleToggle(BuildContext context, String ip) async {
-    final service = DeviceCommandService();
-    final success = await service.sendCommand(ip, {
-      'action': 'toggle',
-      'target': 'relay_1',
-      'deviceIp': ip,
-    });
+  @override
+  State<_PrototypeDeviceCard> createState() => _PrototypeDeviceCardState();
+}
 
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(success ? 'Komut iletildi' : 'Baglanti hatasi'),
-        backgroundColor: success ? Colors.blueGrey : Colors.red,
-        duration: const Duration(seconds: 1),
+class _PrototypeDeviceCardState extends State<_PrototypeDeviceCard> {
+  _DeviceCardTab _activeTab = _DeviceCardTab.usage;
+
+  Future<void> _confirmReboot(BuildContext context, String ip) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
+            const SizedBox(width: 8),
+            Text(
+              'Cihazı Yeniden Başlat',
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w800,
+                fontSize: 18,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          '$ip adresli cihaz yeniden başlatılsın mı?\nGeçici bağlantı kesintisi olabilir.',
+          style: GoogleFonts.inter(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'İptal',
+              style: GoogleFonts.inter(
+                color: Colors.grey[600],
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: Text(
+              'Yeniden Başlat',
+              style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
       ),
     );
+
+    if (confirm == true) {
+      widget.state.rebootDevice(ip);
+    }
   }
 
   void _showDeviceDetailsDialog(
@@ -358,13 +404,13 @@ class _PrototypeDeviceCard extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('${device.id} Teknik Analiz'),
+        title: Text('${widget.device.id} Teknik Analiz'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('IP: ${device.ip}'),
-            Text('Rol: ${device.role}'),
+            Text('IP: ${widget.device.ip}'),
+            Text('Rol: ${widget.device.role}'),
             Text('Durum: ${isOnline ? 'Online' : 'Offline'}'),
             const Divider(),
             const Text(
@@ -393,16 +439,327 @@ class _PrototypeDeviceCard extends StatelessWidget {
     );
   }
 
+  String _readMacAddress(dynamic status) {
+    final rawData = status?.rawData;
+    if (rawData is Map) {
+      const keys = [
+        'mac',
+        'macAddress',
+        'mac_address',
+        'wifiMac',
+        'wifi_mac',
+        'staMac',
+        'sta_mac',
+      ];
+      for (final key in keys) {
+        final value = rawData[key];
+        if (value is String && value.trim().isNotEmpty) {
+          return value.trim();
+        }
+      }
+    }
+    return '--:--:--:--:--:--';
+  }
+
+  String _derivePingOrder(String ip) {
+    final parts = ip.split('.');
+    if (parts.isEmpty) return '--';
+    final last = int.tryParse(parts.last);
+    if (last == null) return '--';
+    return '#$last';
+  }
+
+  Widget _buildUsageContent({
+    required bool compact,
+    required bool isOnline,
+    required int pingMs,
+    required dynamic status,
+  }) {
+    return Column(
+      key: const ValueKey(_DeviceCardTab.usage),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _MetricTile(
+                label: 'PING LATENCY',
+                value: isOnline ? '${pingMs}ms' : '--',
+                accent: const Color(0xFF5B13EC),
+                compact: compact,
+                isLeft: true,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _MetricTile(
+                label: 'STATE',
+                value: isOnline ? 'Online' : 'Offline',
+                accent: isOnline
+                    ? const Color(0xFF00FF41)
+                    : const Color(0xFF94A3B8),
+                compact: compact,
+                isLeft: false,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: compact ? 10 : 14),
+        SizedBox(
+          height: compact ? 44 : 52,
+          child: Row(
+            children: [
+              if (widget.device.role.contains('primary')) ...[
+                Expanded(
+                  child: _RelayControlTile(
+                    label: 'CH 1',
+                    isActive: status?.isRelayActive('relay_1') ?? false,
+                    isOnline: isOnline,
+                    onTap: () =>
+                        widget.state.toggleRelay(widget.device.ip, 'relay_1'),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: _RelayControlTile(
+                    label: 'CH 2',
+                    isActive: status?.isRelayActive('relay_2') ?? false,
+                    isOnline: isOnline,
+                    onTap: () =>
+                        widget.state.toggleRelay(widget.device.ip, 'relay_2'),
+                  ),
+                ),
+              ] else ...[
+                Expanded(
+                  child: _RelayControlTile(
+                    label: 'Röle',
+                    isActive: status?.isRelayActive('relay_1') ?? false,
+                    isOnline: isOnline,
+                    onTap: () =>
+                        widget.state.toggleRelay(widget.device.ip, 'relay_1'),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: _TempSensorTile(status: status, isOnline: isOnline),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: _MotionSensorTile(status: status, isOnline: isOnline),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDeviceContent({
+    required bool compact,
+    required bool isOnline,
+    required dynamic status,
+  }) {
+    final macAddress = _readMacAddress(status);
+    final relay1Active = status?.isRelayActive('relay_1') ?? false;
+    final relay2Active = status?.isRelayActive('relay_2') ?? false;
+    final pir1Detected = status?.motionStatus == 'detected';
+
+    return Column(
+      key: const ValueKey(_DeviceCardTab.device),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8F9FB),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _DeviceSummaryRow(
+                label: 'Kart',
+                value: widget.device.id,
+                compact: true,
+              ),
+              const SizedBox(height: 3),
+              _DeviceSummaryRow(
+                label: 'Ping sırası',
+                value: _derivePingOrder(widget.device.ip),
+                compact: true,
+              ),
+              const SizedBox(height: 3),
+              _DeviceSummaryRow(
+                label: 'MAC',
+                value: macAddress,
+                compact: true,
+                mono: true,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        GridView.count(
+          crossAxisCount: 2,
+          crossAxisSpacing: 6,
+          mainAxisSpacing: 6,
+          childAspectRatio: 1.55,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            _DeviceModuleTile(
+              title: 'Röle 1',
+              subtitle: isOnline
+                  ? (relay1Active ? 'Çıkış aktif' : 'Beklemede')
+                  : 'Çevrimdışı',
+              icon: Icons.power_settings_new_rounded,
+              isActive: relay1Active && isOnline,
+              accent: const Color(0xFF22C55E),
+              compact: true,
+            ),
+            _DeviceModuleTile(
+              title: 'Röle 2',
+              subtitle: isOnline
+                  ? (relay2Active ? 'Çıkış aktif' : 'Beklemede')
+                  : 'Çevrimdışı',
+              icon: Icons.power_settings_new_rounded,
+              isActive: relay2Active && isOnline,
+              accent: const Color(0xFFEF4444),
+              compact: true,
+            ),
+            _DeviceModuleTile(
+              title: 'PIR 1',
+              subtitle: isOnline
+                  ? (pir1Detected ? 'Hareket algılandı' : 'Hareket yok')
+                  : 'Çevrimdışı',
+              icon: Icons.sensors_rounded,
+              isActive: pir1Detected && isOnline,
+              accent: pir1Detected
+                  ? const Color(0xFF22C55E)
+                  : const Color(0xFFEF4444),
+              compact: true,
+            ),
+            _DeviceModuleTile(
+              title: 'PIR 2',
+              subtitle: isOnline ? 'Ayrılmış modül' : 'Çevrimdışı',
+              icon: Icons.notifications_active_rounded,
+              isActive: false,
+              accent: const Color(0xFF94A3B8),
+              compact: true,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSettingContent({
+    required bool compact,
+    required bool isOnline,
+  }) {
+    return Column(
+      key: const ValueKey(_DeviceCardTab.setting),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(compact ? 12 : 14),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8F9FB),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Cihaz ayar yüzeyi',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF0F172A),
+                  fontSize: compact ? 12 : 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Cihaza özel tercihler ve gelişmiş kontroller için ayrılmış alan.',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF64748B),
+                  fontSize: compact ? 10 : 11,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: compact ? 10 : 12),
+        Row(
+          children: [
+            Expanded(
+              child: _SettingPlaceholderTile(
+                title: 'Ağ',
+                value: isOnline ? 'Eşitlendi' : 'Çevrimdışı',
+                icon: Icons.wifi_tethering_rounded,
+                compact: compact,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _SettingPlaceholderTile(
+                title: 'Profil',
+                value: 'Hazırlanıyor',
+                icon: Icons.tune_rounded,
+                compact: compact,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTabContent({
+    required bool compact,
+    required bool isOnline,
+    required int pingMs,
+    required dynamic status,
+  }) {
+    switch (_activeTab) {
+      case _DeviceCardTab.device:
+        return _buildDeviceContent(
+          compact: compact,
+          isOnline: isOnline,
+          status: status,
+        );
+      case _DeviceCardTab.setting:
+        return _buildSettingContent(
+          compact: compact,
+          isOnline: isOnline,
+        );
+      case _DeviceCardTab.usage:
+        return _buildUsageContent(
+          compact: compact,
+          isOnline: isOnline,
+          pingMs: pingMs,
+          status: status,
+        );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final status = state.deviceStatuses[device.ip];
+    final status = widget.state.deviceStatuses[widget.device.ip];
     final isOnline = status?.isOnline ?? false;
-    final relay1Active = status?.isRelayActive('relay_1') ?? false;
-    final pingMs = state.pingLatencies[device.ip] ?? 0;
-    final lastLog = state.logs.isNotEmpty
-        ? state.logs.first
-        : '[SYSTEM] Awaiting stream...';
-    final deviceIcon = device.role.toLowerCase().contains('primary')
+    final pingMs = widget.state.pingLatencies[widget.device.ip] ?? 0;
+
+    final List<String> dLogs = widget.state.deviceLogs[widget.device.ip] ?? [];
+    final String log1 = dLogs.isNotEmpty ? dLogs[0] : '> _ Awaiting telemetry...';
+    final String log2 = dLogs.length > 1 ? dLogs[1] : '';
+
+    final deviceIcon = widget.device.role.toLowerCase().contains('primary')
         ? Icons.sensors_rounded
         : Icons.router_rounded;
 
@@ -449,7 +806,6 @@ class _PrototypeDeviceCard extends StatelessWidget {
                   ),
                   child: Column(
                     children: [
-                      // Üst Header: İkon, Başlık, Güç Butonu
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -461,9 +817,8 @@ class _PrototypeDeviceCard extends StatelessWidget {
                                   ? const Color(0xFF5B13EC).withOpacity(0.1)
                                   : const Color(0xFFF8F9FB),
                               borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: const Color(0xFFE2E8F0),
-                              ),
+                              border:
+                                  Border.all(color: const Color(0xFFE2E8F0)),
                             ),
                             child: Icon(
                               deviceIcon,
@@ -479,7 +834,7 @@ class _PrototypeDeviceCard extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  device.id,
+                                  widget.device.id,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: GoogleFonts.inter(
@@ -497,14 +852,13 @@ class _PrototypeDeviceCard extends StatelessWidget {
                                   ),
                                   decoration: BoxDecoration(
                                     color: isOnline
-                                        ? const Color(
-                                            0xFF5B13EC,
-                                          ).withOpacity(0.05)
+                                        ? const Color(0xFF5B13EC)
+                                            .withOpacity(0.05)
                                         : const Color(0xFFF1F5F9),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Text(
-                                    device.ip,
+                                    widget.device.ip,
                                     style: GoogleFonts.jetBrainsMono(
                                       color: isOnline
                                           ? const Color(0xFF5B13EC)
@@ -521,19 +875,20 @@ class _PrototypeDeviceCard extends StatelessWidget {
                             width: compact ? 34 : 38,
                             height: compact ? 34 : 38,
                             child: IconButton(
+                              tooltip: 'Cihazı yeniden başlat',
                               padding: EdgeInsets.zero,
-                              onPressed: () =>
-                                  _handleToggle(context, device.ip),
+                              onPressed: isOnline
+                                  ? () => _confirmReboot(
+                                        context,
+                                        widget.device.ip,
+                                      )
+                                  : null,
                               style: IconButton.styleFrom(
-                                backgroundColor: isOnline
-                                    ? const Color(0xFF5B13EC)
-                                    : const Color(0xFFF1F5F9),
-                                foregroundColor: isOnline
-                                    ? Colors.white
-                                    : const Color(0xFF94A3B8),
+                                backgroundColor: const Color(0xFFFEF2F2),
+                                foregroundColor: const Color(0xFFDC2626),
                               ),
                               icon: Icon(
-                                Icons.power_settings_new_rounded,
+                                Icons.restart_alt_rounded,
                                 size: compact ? 18 : 20,
                               ),
                             ),
@@ -541,100 +896,31 @@ class _PrototypeDeviceCard extends StatelessWidget {
                         ],
                       ),
                       SizedBox(height: compact ? 12 : 16),
-                      // 3'lü Pill Menüsü
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8F9FB),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(8),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.05),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 1),
-                                    ),
-                                  ],
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    'USAGE',
-                                    style: GoogleFonts.inter(
-                                      color: const Color(0xFF5B13EC),
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Center(
-                                child: Text(
-                                  'DEVICE',
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFF94A3B8),
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Center(
-                                child: Text(
-                                  'SETTING',
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFF94A3B8),
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                      _DeviceCardTabs(
+                        activeTab: _activeTab,
+                        onTabChanged: (tab) {
+                          if (_activeTab == tab) return;
+                          setState(() {
+                            _activeTab = tab;
+                          });
+                        },
                       ),
-                      SizedBox(height: compact ? 16 : 24),
-                      // Latency ve Relay State Metinleri
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          _MetricTile(
-                            label: 'PING LATENCY',
-                            value: isOnline ? '${pingMs}ms' : '--',
-                            accent: const Color(0xFF5B13EC),
-                            compact: compact,
-                            isLeft: true,
-                          ),
-                          _MetricTile(
-                            label: 'RELAY STATE',
-                            value: relay1Active ? 'Active' : 'Standby',
-                            accent: const Color(0xFF0EA5E9), // Cyan
-                            compact: compact,
-                            isLeft: false,
-                          ),
-                        ],
+                      SizedBox(height: compact ? 12 : 16),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 220),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        child: _buildTabContent(
+                          compact: compact,
+                          isOnline: isOnline,
+                          pingMs: pingMs,
+                          status: status,
+                        ),
                       ),
                     ],
                   ),
                 ),
                 const Spacer(),
-                // Yeni 8'li Dikdörtgen Dalga Formu
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: outerPadding),
                   child: _WaveformDisplay(
@@ -643,46 +929,52 @@ class _PrototypeDeviceCard extends StatelessWidget {
                     isOnline: isOnline,
                   ),
                 ),
-                const SizedBox(height: 12), // DALGA ILE LOG ARASINDAKI BOSLUK
-                // Dark Log Strip
+                const SizedBox(height: 12),
                 Container(
                   width: double.infinity,
                   height: bottomLogHeight,
                   decoration: const BoxDecoration(
-                    color: Color(0xFF0F172A), // Tailwind slate-900
-                    borderRadius: BorderRadius.vertical(
-                      bottom: Radius.circular(22),
-                    ),
+                    color: Color(0xFF0F172A),
+                    borderRadius:
+                        BorderRadius.vertical(bottom: Radius.circular(22)),
                   ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   child: Row(
                     children: [
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              lastLog,
-                              maxLines: 2,
+                              log1,
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.jetBrainsMono(
-                                color: const Color(0xFF00FF41), // Cockpit Green
+                                color: isOnline
+                                    ? const Color(0xFF00FF41)
+                                    : const Color(0xFF94A3B8),
                                 fontSize: 10,
+                                fontWeight: log1.contains('CMD') ||
+                                        log1.contains('SYS')
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
                               ),
                             ),
-                            if (isOnline) ...[
+                            if (log2.isNotEmpty) ...[
                               const SizedBox(height: 4),
                               Text(
-                                '> _ Awaiting sync...',
+                                log2,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.jetBrainsMono(
-                                  color: const Color(
-                                    0xFF00FF41,
-                                  ).withOpacity(0.7),
-                                  fontSize: 10,
+                                  color: isOnline
+                                      ? const Color(0xFF00FF41)
+                                          .withOpacity(0.6)
+                                      : const Color(0xFF94A3B8)
+                                          .withOpacity(0.6),
+                                  fontSize: 9,
                                 ),
                               ),
                             ],
@@ -718,7 +1010,482 @@ class _PrototypeDeviceCard extends StatelessWidget {
   }
 }
 
-// Yeni entegre edilen, HTML referansına birebir uyan 8 barlı Dalga Formu Widget'ı
+class _DeviceCardTabs extends StatelessWidget {
+  final _DeviceCardTab activeTab;
+  final ValueChanged<_DeviceCardTab> onTabChanged;
+
+  const _DeviceCardTabs({
+    required this.activeTab,
+    required this.onTabChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _DeviceTabButton(
+              label: 'USAGE',
+              isActive: activeTab == _DeviceCardTab.usage,
+              onTap: () => onTabChanged(_DeviceCardTab.usage),
+            ),
+          ),
+          Expanded(
+            child: _DeviceTabButton(
+              label: 'DEVICE',
+              isActive: activeTab == _DeviceCardTab.device,
+              onTap: () => onTabChanged(_DeviceCardTab.device),
+            ),
+          ),
+          Expanded(
+            child: _DeviceTabButton(
+              label: 'SETTING',
+              isActive: activeTab == _DeviceCardTab.setting,
+              onTap: () => onTabChanged(_DeviceCardTab.setting),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DeviceTabButton extends StatelessWidget {
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _DeviceTabButton({
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          decoration: BoxDecoration(
+            color: isActive ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: isActive
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Center(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                color: isActive
+                    ? const Color(0xFF5B13EC)
+                    : const Color(0xFF94A3B8),
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DeviceSummaryRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool compact;
+  final bool mono;
+
+  const _DeviceSummaryRow({
+    required this.label,
+    required this.value,
+    required this.compact,
+    this.mono = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final valueStyle = mono ? GoogleFonts.jetBrainsMono : GoogleFonts.inter;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 62,
+          child: Text(
+            '$label:',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF94A3B8),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: valueStyle(
+              color: const Color(0xFF0F172A),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DeviceModuleTile extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final bool isActive;
+  final Color accent;
+  final bool compact;
+
+  const _DeviceModuleTile({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.isActive,
+    required this.accent,
+    required this.compact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isActive
+              ? accent.withOpacity(0.55)
+              : const Color(0xFFE2E8F0),
+        ),
+        boxShadow: isActive
+            ? [
+                BoxShadow(
+                  color: accent.withOpacity(0.10),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ]
+            : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF0F172A),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isActive ? accent : const Color(0xFFCBD5E1),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Expanded(
+            child: Center(
+              child: Icon(
+                icon,
+                size: 22,
+                color: isActive ? accent : accent.withOpacity(0.70),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF64748B),
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              height: 1.1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingPlaceholderTile extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+  final bool compact;
+
+  const _SettingPlaceholderTile({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.compact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 10 : 12,
+        vertical: compact ? 12 : 14,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FB),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            icon,
+            color: const Color(0xFF5B13EC),
+            size: compact ? 18 : 20,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF0F172A),
+              fontSize: compact ? 11 : 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF64748B),
+              fontSize: compact ? 10 : 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RelayControlTile extends StatelessWidget {
+  final String label;
+  final bool isActive;
+  final bool isOnline;
+  final VoidCallback onTap;
+
+  const _RelayControlTile({
+    required this.label,
+    required this.isActive,
+    required this.isOnline,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: isOnline ? onTap : null,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          color: !isOnline
+              ? const Color(0xFFF1F5F9)
+              : isActive
+                  ? const Color(0xFF5B13EC)
+                  : const Color(0xFFF8F9FB),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isActive && isOnline
+                ? const Color(0xFF5B13EC)
+                : const Color(0xFFE2E8F0),
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.power_settings_new_rounded,
+              size: 18,
+              color: !isOnline
+                  ? const Color(0xFF94A3B8)
+                  : isActive
+                      ? Colors.white
+                      : const Color(0xFF64748B),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: !isOnline
+                    ? const Color(0xFF94A3B8)
+                    : isActive
+                        ? Colors.white
+                        : const Color(0xFF64748B),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TempSensorTile extends StatelessWidget {
+  final dynamic status;
+  final bool isOnline;
+
+  const _TempSensorTile({
+    required this.status,
+    required this.isOnline,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final String tempStr = status?.temperature != null && status?.temperature > 0
+        ? '${status!.temperature}°C'
+        : '--';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.thermostat_rounded,
+            size: 18,
+            color: Color(0xFF0EA5E9),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            isOnline ? tempStr : '--',
+            style: GoogleFonts.jetBrainsMono(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF0F172A),
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MotionSensorTile extends StatelessWidget {
+  final dynamic status;
+  final bool isOnline;
+
+  const _MotionSensorTile({
+    required this.status,
+    required this.isOnline,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool hasMotion = status?.motionStatus == 'detected';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: !isOnline
+                  ? Colors.grey
+                  : (hasMotion
+                      ? Colors.redAccent
+                      : const Color(0xFF00FF41)),
+              boxShadow: hasMotion
+                  ? [
+                      BoxShadow(
+                        color: Colors.redAccent.withOpacity(0.5),
+                        blurRadius: 6,
+                      ),
+                    ]
+                  : null,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            isOnline ? (hasMotion ? 'MOTION' : 'CLEAR') : '--',
+            style: GoogleFonts.inter(
+              fontSize: 9,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF64748B),
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _WaveformDisplay extends StatelessWidget {
   final int pingMs;
   final double height;
@@ -732,10 +1499,7 @@ class _WaveformDisplay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Referans HTML dosyasındaki yükseklik oranları (8 adet)
     final baseHeights = [0.3, 0.5, 0.8, 0.4, 0.2, 0.6, 0.9, 0.5];
-
-    // Canlılık hissi vermek için ping süresine bağlı ufak bir varyasyon
     final variation = (pingMs % 5) * 0.02;
 
     return SizedBox(
@@ -743,14 +1507,12 @@ class _WaveformDisplay extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: List.generate(8, (index) {
-          final h =
-              (baseHeights[index] + (index % 2 == 0 ? variation : -variation))
-                  .clamp(0.1, 1.0);
+          final h = (baseHeights[index] +
+                  (index % 2 == 0 ? variation : -variation))
+              .clamp(0.1, 1.0);
           return Expanded(
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 4.0,
-              ), // Barlar arası boşluk
+              padding: const EdgeInsets.symmetric(horizontal: 4.0),
               child: FractionallySizedBox(
                 alignment: Alignment.bottomCenter,
                 heightFactor: isOnline ? h : 0.1,
@@ -760,18 +1522,14 @@ class _WaveformDisplay extends StatelessWidget {
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        const Color(
-                          0xFF5B13EC,
-                        ).withOpacity(isOnline ? 0.8 : 0.3),
-                        const Color(
-                          0xFF06B6D4,
-                        ).withOpacity(isOnline ? 0.4 : 0.1),
+                        const Color(0xFF5B13EC)
+                            .withOpacity(isOnline ? 0.8 : 0.3),
+                        const Color(0xFF06B6D4)
+                            .withOpacity(isOnline ? 0.4 : 0.1),
                       ],
                     ),
                     borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(
-                        2.5,
-                      ), // Üst köşelerde hafif yuvarlatma (rounded-t-sm)
+                      top: Radius.circular(2.5),
                     ),
                   ),
                 ),
@@ -802,28 +1560,33 @@ class _MetricTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: isLeft
-          ? CrossAxisAlignment.start
-          : CrossAxisAlignment.end,
+      crossAxisAlignment:
+          isLeft ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           label,
-          style: GoogleFonts.inter(
-            color: const Color(0xFF94A3B8),
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.8,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: GoogleFonts.inter(
-            color: accent,
-            fontSize: compact ? 20 : 24,
+            color: const Color(0xFF94A3B8),
+            fontSize: 9,
             fontWeight: FontWeight.w800,
+            letterSpacing: 0.6,
+          ),
+        ),
+        const SizedBox(height: 2),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: isLeft ? Alignment.centerLeft : Alignment.centerRight,
+          child: Text(
+            value,
+            maxLines: 1,
+            style: GoogleFonts.inter(
+              color: accent,
+              fontSize: compact ? 18 : 22,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ),
       ],
@@ -876,11 +1639,15 @@ class _PagerButton extends StatelessWidget {
       style: IconButton.styleFrom(
         minimumSize: const Size(44, 44),
         backgroundColor: isPrimary
-            ? (enabled ? const Color(0xFF5B13EC) : const Color(0xFFE2E8F0))
+            ? (enabled
+                ? const Color(0xFF5B13EC)
+                : const Color(0xFFE2E8F0))
             : Colors.white,
         foregroundColor: isPrimary
             ? Colors.white
-            : (enabled ? const Color(0xFF0F172A) : const Color(0xFF94A3B8)),
+            : (enabled
+                ? const Color(0xFF0F172A)
+                : const Color(0xFF94A3B8)),
         side: isPrimary
             ? BorderSide.none
             : const BorderSide(color: Color(0xFFE2E8F0)),
@@ -899,7 +1666,9 @@ class _Sidebar extends StatelessWidget {
       width: 260,
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(right: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
+        border: Border(
+          right: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
@@ -1043,7 +1812,8 @@ class _SidebarItem extends StatelessWidget {
                 style: GoogleFonts.inter(
                   color: fgColor,
                   fontSize: 15,
-                  fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
+                  fontWeight:
+                      isActive ? FontWeight.w800 : FontWeight.w600,
                 ),
               ),
             ],
@@ -1054,59 +1824,87 @@ class _SidebarItem extends StatelessWidget {
   }
 }
 
-class _SidebarProfile extends StatelessWidget {
+// --- YENİ: HOVER (PARLAMA) EFEKTLİ PROFİL KARTI ---
+class _SidebarProfile extends StatefulWidget {
   const _SidebarProfile();
 
   @override
+  State<_SidebarProfile> createState() => _SidebarProfileState();
+}
+
+class _SidebarProfileState extends State<_SidebarProfile> {
+  bool _isHovered = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Color(0xFFF1F5F9),
-            ),
-            child: const Icon(
-              Icons.person_rounded,
-              color: Color(0xFF94A3B8),
-              size: 24,
-            ),
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: _isHovered
+                ? const Color(0xFF00FF41)
+                : const Color(0xFFE2E8F0),
+            width: 1,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Madam User',
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF0F172A),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'v2-stable',
-                  style: GoogleFonts.jetBrainsMono(
-                    color: const Color(0xFF64748B),
-                    fontSize: 11,
-                  ),
-                ),
-              ],
+          boxShadow: _isHovered
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF00FF41).withOpacity(0.3),
+                    blurRadius: 15,
+                    offset: const Offset(0, 0),
+                  )
+                ]
+              : [],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFFF1F5F9),
+              ),
+              child: const Icon(
+                Icons.person_rounded,
+                color: Color(0xFF94A3B8),
+                size: 24,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Madam User',
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF0F172A),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'v2-stable',
+                    style: GoogleFonts.jetBrainsMono(
+                      color: const Color(0xFF64748B),
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1162,7 +1960,7 @@ class _TopHeaderState extends State<_TopHeader> {
       'Sep',
       'Oct',
       'Nov',
-      'Dec',
+      'Dec'
     ];
     final day = value.day.toString().padLeft(2, '0');
     final month = months[value.month - 1];
@@ -1210,7 +2008,10 @@ class _TopHeaderState extends State<_TopHeader> {
           const SizedBox(width: 24),
           if (widget.state.isPolling)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 6,
+              ),
               decoration: BoxDecoration(
                 color: Colors.green.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
@@ -1278,7 +2079,10 @@ class _TopHeaderState extends State<_TopHeader> {
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.redAccent,
               side: const BorderSide(color: Colors.redAccent),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -1327,7 +2131,7 @@ class _TopHeaderState extends State<_TopHeader> {
                       color: const Color(0xFF5B13EC).withOpacity(0.08),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
-                    ),
+                    )
                   ],
                 ),
                 child: const Icon(
@@ -1401,7 +2205,8 @@ class _RightPanel extends StatelessWidget {
                     color: Color(0xFF5B13EC),
                   ),
                   style: IconButton.styleFrom(
-                    backgroundColor: const Color(0xFF5B13EC).withOpacity(0.1),
+                    backgroundColor:
+                        const Color(0xFF5B13EC).withOpacity(0.1),
                   ),
                 ),
               ],
@@ -1450,7 +2255,7 @@ class _RightPanel extends StatelessWidget {
                     color: const Color(0xFF5B13EC).withOpacity(0.3),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
-                  ),
+                  )
                 ],
               ),
               child: Stack(
@@ -1556,7 +2361,9 @@ class _FavoriteTile extends StatelessWidget {
         color: isActive ? const Color(0xFFF8F9FB) : Colors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isActive ? const Color(0xFFE2E8F0) : Colors.transparent,
+          color: isActive
+              ? const Color(0xFFE2E8F0)
+              : Colors.transparent,
         ),
       ),
       child: Row(
@@ -1573,7 +2380,7 @@ class _FavoriteTile extends StatelessWidget {
                   color: Colors.black.withOpacity(0.05),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
-                ),
+                )
               ],
             ),
             child: Icon(
@@ -1589,7 +2396,8 @@ class _FavoriteTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment:
+                      MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
                       child: Text(
@@ -1614,10 +2422,11 @@ class _FavoriteTile extends StatelessWidget {
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF00FF41).withOpacity(0.6),
+                              color: const Color(0xFF00FF41)
+                                  .withOpacity(0.6),
                               blurRadius: 8,
                               spreadRadius: 1,
-                            ),
+                            )
                           ],
                         ),
                       ),
@@ -1626,7 +2435,7 @@ class _FavoriteTile extends StatelessWidget {
                         width: 8,
                         height: 8,
                         decoration: const BoxDecoration(
-                          color: const Color(0xFFCBD5E1),
+                          color: Color(0xFFCBD5E1),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -1672,7 +2481,8 @@ class _SystemLogsPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment:
+                MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 'SYSTEM LOGS (REAL-TIME)',
