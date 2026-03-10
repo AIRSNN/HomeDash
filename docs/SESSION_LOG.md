@@ -2,6 +2,15 @@
 
 Bu dosya oturum sirasindaki onemli asamalari, kararlari ve tamamlanan adimlari kaydetmek icin kullanilacaktir.
 
+## Phase 6 Init (2026-03-10)
+- `logging_service.dart` ve `library_page.dart` dosyalari sisteme eklendi.
+- Loglari diske yazma senaryosu baslatildi.
+
+## Architecture Fix & Optimization (2026-03-10)
+- Arayuz navigasyonu IndexedStack yapisina gecirildi.
+- Bu sayede sayfalar arasi gecislerde PageView state kaybi onlendi.
+- Diske yazilan loglar, gereksiz telemetri verilerinden arindirilarak sadece durum degisiklikleri ve komutlari kaydedecek sekilde akilli filtrelemeye tabi tutuldu.
+
 ## Architecture Update (2026-03-10)
 - `dashboard_state.dart` uzerinde Fetch/Commit mimarisi kurularak cihaz polling dongusu optimize edildi.
 - UI darbo gazlari ve RenderFlex tasmalar tamamen giderildi.

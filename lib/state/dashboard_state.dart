@@ -1,4 +1,4 @@
-/// MADAM Projesi - Merkezi Durum Yönetimi (M2M Otomasyon & Optimizasyon v3 - Fetch/Commit Ayrımı)
+/// MADAM Projesi - Merkezi Durum Yönetimi (M2M Otomasyon & Optimizasyon v4 - Akıllı Log Filtreleme)
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -7,6 +7,7 @@ import '../models/device_status.dart';
 import '../config/device_registry.dart';
 import '../services/device_command_service.dart';
 import '../services/ping_service.dart';
+import '../services/logging_service.dart';
 
 class DashboardState extends ChangeNotifier {
   final List<DeviceInfo> devices = DeviceRegistry.getKnownDevices();
@@ -24,6 +25,7 @@ class DashboardState extends ChangeNotifier {
   // Servisler
   final PingService _pingService = PingService();
   final DeviceCommandService _commandService = DeviceCommandService();
+  final LoggingService _loggingService = LoggingService(); 
 
   // Polling Ayarları
   Timer? _pollingTimer;
@@ -45,27 +47,36 @@ class DashboardState extends ChangeNotifier {
     initializeDashboard();
   }
 
-  // Genel Sistem Logu (En Alttaki Panel İçin)
+  // Genel Sistem Logu 
   void addLog(String message, {bool notify = true}) {
     final timeStr = DateTime.now().toIso8601String().substring(11, 19);
     logs.insert(0, '[$timeStr] $message');
     if (logs.length > 50) logs.removeLast();
+    
+    // Sistem logları her zaman diske yazılır
+    _loggingService.writeLog('SYS', message);
+
     if (notify) notifyListeners();
   }
 
-  // Karta Özel Log (Kartların Altındaki Siyah Alan İçin)
-  void addDeviceLog(String ip, String message, {bool notify = true}) {
+  // Karta Özel Log (saveToDisk parametresi eklendi - Gereksiz şişmeyi önler)
+  void addDeviceLog(String ip, String message, {bool notify = true, bool saveToDisk = true}) {
     final timeStr = DateTime.now().toIso8601String().substring(11, 19);
     if (!deviceLogs.containsKey(ip)) {
       deviceLogs[ip] = [];
     }
     
-    // Başına saati ekleyerek listeye al
+    // UI için listeye ekle
     deviceLogs[ip]!.insert(0, '[$timeStr] $message');
     
-    // Her kartın hafızasında maksimum 10 log tut, taşmasını engelle
+    // Kart hafızası taşmasın
     if (deviceLogs[ip]!.length > 10) {
       deviceLogs[ip]!.removeLast();
+    }
+
+    // Sadece önemli olaylar (Durum değişimi, Komut, Otomasyon) diske yazılır
+    if (saveToDisk) {
+      _loggingService.writeLog(ip, message);
     }
     
     if (notify) notifyListeners();
@@ -75,7 +86,7 @@ class DashboardState extends ChangeNotifier {
     for (var device in devices) {
       deviceStatuses[device.ip] = DeviceStatus(isOnline: false);
       pingLatencies[device.ip] = 0;
-      deviceLogs[device.ip] = []; // Her cihaz için boş log listesi başlat
+      deviceLogs[device.ip] = []; 
     }
     addLog('HomeDash ait sistemler başlatıldı. Cihazlar hazır.');
   }
@@ -109,7 +120,7 @@ class DashboardState extends ChangeNotifier {
     _enforcedStates.putIfAbsent(ip, () => {})[targetRelay] = newTargetState;
     _uiStateLocks[ip] = DateTime.now().add(const Duration(seconds: 3));
 
-    // Karta Özel Komut Logu
+    // Komutlar önemlidir, diske KAYDEDİLİR (saveToDisk varsayılan olarak true'dur)
     addDeviceLog(ip, 'CMD: $targetRelay -> ${newTargetState ? "ON" : "OFF"}');
 
     bool success = await _commandService.sendCommand(ip, {
@@ -134,8 +145,6 @@ class DashboardState extends ChangeNotifier {
 
   Future<bool> rebootDevice(String ip) async {
     addLog('SİSTEM: $ip yeniden başlatılıyor...', notify: true);
-    
-    // Karta Özel Reboot Logu
     addDeviceLog(ip, 'SYS_CMD: Rebooting...', notify: true);
     
     deviceStatuses[ip] = DeviceStatus(isOnline: false);
@@ -155,7 +164,6 @@ class DashboardState extends ChangeNotifier {
     return success;
   }
 
-  // --- 1. FETCH FAZI (Sadece Veri Toplama) ---
   Future<Map<String, dynamic>> _fetchDeviceState(DeviceInfo device) async {
     int currentLatency = 0;
     DeviceStatus currentStatus = DeviceStatus(isOnline: false);
@@ -168,7 +176,7 @@ class DashboardState extends ChangeNotifier {
         currentStatus = await _commandService.getDeviceStatus(device.ip);
       }
     } catch (e) {
-      addLog('Hata (${device.ip}): Bağlantı sorunu.', notify: false);
+      // Sessiz hata yakalama
     }
 
     return {
@@ -178,7 +186,6 @@ class DashboardState extends ChangeNotifier {
     };
   }
 
-  // --- 2. COMMIT FAZI (State'i Sessizce Güncelleme) ---
   void _commitDeviceStates(List<Map<String, dynamic>> results) {
     final now = DateTime.now();
     int onlineCount = 0;
@@ -192,20 +199,31 @@ class DashboardState extends ChangeNotifier {
 
       final lockTime = _uiStateLocks[ip];
       if (lockTime == null || now.isAfter(lockTime)) {
+          
+          // ÖNCEKİ DURUMU KONTROL ET (Log Bloat'u engellemek için)
+          final bool wasOnline = deviceStatuses[ip]?.isOnline ?? false;
+          final bool isNowOnline = status.isOnline;
+
+          // Durumu Güncelle
           deviceStatuses[ip] = status;
 
-          if (status.isOnline) {
-            addDeviceLog(ip, 'Telemetry synced (${latency}ms)', notify: false);
+          if (isNowOnline) {
+            // Cihaz yeni çevrimiçi olduysa diske yaz
+            if (!wasOnline) {
+              addDeviceLog(ip, 'STATUS: Cihaz ağa bağlandı.', saveToDisk: true, notify: false);
+            }
+            
+            // Rutin telemetri sadece UI'da gösterilir, DİSKE YAZILMAZ (saveToDisk: false)
+            addDeviceLog(ip, 'Telemetry synced (${latency}ms)', notify: false, saveToDisk: false);
 
+            // Recovery kontrolü
             if (_enforcedStates.containsKey(ip)) {
               final targetMap = _enforcedStates[ip]!;
-              
               targetMap.forEach((relayName, desiredState) {
                 bool actualState = status.isRelayActive(relayName);
-
                 if (actualState != desiredState) {
                   addLog('SİSTEM KURTARMA: $ip $relayName senkronize ediliyor...', notify: false);
-                  addDeviceLog(ip, 'RECOVERY: $relayName -> ${desiredState ? "ON" : "OFF"}', notify: false);
+                  addDeviceLog(ip, 'RECOVERY: $relayName -> ${desiredState ? "ON" : "OFF"}', notify: false, saveToDisk: true);
                   
                   _uiStateLocks[ip] = DateTime.now().add(const Duration(seconds: 4));
                   _commandService.sendCommand(ip, {
@@ -217,7 +235,13 @@ class DashboardState extends ChangeNotifier {
               });
             }
           } else {
-            addDeviceLog(ip, 'Timeout: Host unreachable', notify: false);
+            // Cihaz yeni çevrimdışı olduysa diske yaz
+            if (wasOnline) {
+              addDeviceLog(ip, 'STATUS: Bağlantı koptu (Host unreachable).', saveToDisk: true, notify: false);
+            }
+            
+            // Rutin timeout sadece UI'da gösterilir, DİSKE YAZILMAZ (saveToDisk: false)
+            addDeviceLog(ip, 'Timeout: Host unreachable', notify: false, saveToDisk: false);
           }
       }
 
@@ -227,26 +251,20 @@ class DashboardState extends ChangeNotifier {
     statusMessage = 'Tarama bitti. $onlineCount cihaz aktif.';
   }
 
-  // --- ANA DÖNGÜ KONTROLCÜSÜ ---
   Future<void> _scanAllDevices() async {
     if (_isShuttingDown || isScanning) return;
     isScanning = true;
-    notifyListeners(); // Loader ikonunu göstermek için
+    notifyListeners(); 
 
-    // 1. FETCH
     final futures = devices.map((device) => _fetchDeviceState(device)).toList();
     final results = await Future.wait(futures);
 
-    // 2. COMMIT
     _commitDeviceStates(results);
-
-    // 3. OTOMASYON
     await _checkAutomationLogic();
 
-    // 4. BİTİŞ VE NİHAİ BİLDİRİM
     isScanning = false;
     lastScanTime = DateTime.now();
-    notifyListeners(); // UI yalnızca bu noktada tek seferde yeniden çizilecek
+    notifyListeners(); 
   }
 
   Future<void> _checkAutomationLogic() async {
@@ -263,8 +281,9 @@ class DashboardState extends ChangeNotifier {
       if (currentState == "on" && _lastSensorState == "off") {
         addLog('OTOMASYON: $sensorIp tetiklendi! Hedef (.29) güncelleniyor.', notify: false);
         
-        addDeviceLog(sensorIp, 'EVENT: Motion triggered', notify: false);
-        addDeviceLog(relayIp, 'AUTO_CMD: relay_1 -> ON', notify: false);
+        // Otomasyon olayları diske yazılır
+        addDeviceLog(sensorIp, 'EVENT: Motion triggered', notify: false, saveToDisk: true);
+        addDeviceLog(relayIp, 'AUTO_CMD: relay_1 -> ON', notify: false, saveToDisk: true);
 
         if (targetStatus != null && targetStatus.isOnline) {
           
@@ -283,7 +302,6 @@ class DashboardState extends ChangeNotifier {
             try {
               final newTargetStatus = await _commandService.getDeviceStatus(relayIp);
               deviceStatuses[relayIp] = newTargetStatus;
-              // notifyListeners bilerek çağrılmıyor, ana döngünün sonunda yapılacak.
             } catch (_) {}
           } else {
             addLog('HATA: Otomasyon komutu iletilemedi.', notify: false);

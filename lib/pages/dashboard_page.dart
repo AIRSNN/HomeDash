@@ -1,4 +1,4 @@
-/// MADAM Projesi - Prototype-aligned Dashboard App Shell (Faz 3 - Final UI V4 Device Logs + Layout Fix + Hover Effect)
+/// MADAM Projesi - Prototype-aligned Dashboard App Shell (Faz 6 - App Shell ve IndexedStack Navigation)
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../models/device_info.dart';
 import '../state/dashboard_state.dart';
+import 'library_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -18,6 +19,9 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   late final PageController _devicePageController;
   int _devicePageIndex = 0;
+  
+  // App Shell Navigasyon Durumu (1 = Stations, 3 = Library)
+  int _selectedNavIndex = 1;
 
   @override
   void initState() {
@@ -80,43 +84,22 @@ class _DashboardPageState extends State<DashboardPage> {
 
             return Row(
               children: [
-                const _Sidebar(),
+                _Sidebar(
+                  selectedIndex: _selectedNavIndex,
+                  onItemSelected: (index) {
+                    setState(() {
+                      _selectedNavIndex = index;
+                    });
+                  },
+                ),
                 Expanded(
-                  child: Column(
+                  // ÇÖZÜM MİMARİSİ: IndexedStack sayfaları çöpe atmaz, arka planda dondurur.
+                  // Böylece sayfa geçişlerinde PageController state'i ve kaydırma pozisyonu asla kaybolmaz.
+                  child: IndexedStack(
+                    index: _selectedNavIndex == 3 ? 1 : 0,
                     children: [
-                      _TopHeader(state: dashboardState),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Expanded(
-                                child: _MainContent(
-                                  state: dashboardState,
-                                  devicePages: devicePages,
-                                  pageController: _devicePageController,
-                                  currentPage: _devicePageIndex,
-                                  onPageChanged: (value) {
-                                    setState(() {
-                                      _devicePageIndex = value;
-                                    });
-                                  },
-                                  onPrevious: _goToPreviousPage,
-                                  onNext: () =>
-                                      _goToNextPage(devicePages.length),
-                                ),
-                              ),
-                              const SizedBox(width: 24),
-                              _RightPanel(state: dashboardState),
-                            ],
-                          ),
-                        ),
-                      ),
-                      _SystemLogsPanel(
-                        state: dashboardState,
-                        height: logsHeight,
-                      ),
+                      _buildStationsView(dashboardState, devicePages, logsHeight),
+                      const LibraryPage(),
                     ],
                   ),
                 ),
@@ -125,6 +108,46 @@ class _DashboardPageState extends State<DashboardPage> {
           },
         ),
       ),
+    );
+  }
+
+  // Orijinal Dashboard (Stations) Arayüzünü ayrı bir metoda aldık
+  Widget _buildStationsView(DashboardState dashboardState, List<List<DeviceInfo>> devicePages, double logsHeight) {
+    return Column(
+      children: [
+        _TopHeader(state: dashboardState),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _MainContent(
+                    state: dashboardState,
+                    devicePages: devicePages,
+                    pageController: _devicePageController,
+                    currentPage: _devicePageIndex,
+                    onPageChanged: (value) {
+                      setState(() {
+                        _devicePageIndex = value;
+                      });
+                    },
+                    onPrevious: _goToPreviousPage,
+                    onNext: () => _goToNextPage(devicePages.length),
+                  ),
+                ),
+                const SizedBox(width: 24),
+                _RightPanel(state: dashboardState),
+              ],
+            ),
+          ),
+        ),
+        _SystemLogsPanel(
+          state: dashboardState,
+          height: logsHeight,
+        ),
+      ],
     );
   }
 }
@@ -797,13 +820,12 @@ class _PrototypeDeviceCardState extends State<_PrototypeDeviceCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. SABİT ÜST ALAN (Header ve Sekmeler)
                 Padding(
                   padding: EdgeInsets.fromLTRB(
                     outerPadding,
                     outerPadding,
                     outerPadding,
-                    0, // Alt boşluğu kaldırdık, ScrollView'e devrettik
+                    0, 
                   ),
                   child: Column(
                     children: [
@@ -911,7 +933,6 @@ class _PrototypeDeviceCardState extends State<_PrototypeDeviceCard> {
                   ),
                 ),
                 
-                // 2. ESNEK VE KAYDIRILABİLİR ORTA ALAN (Taşmayı engelleyen zırh)
                 Expanded(
                   child: SingleChildScrollView(
                     padding: EdgeInsets.fromLTRB(
@@ -934,8 +955,6 @@ class _PrototypeDeviceCardState extends State<_PrototypeDeviceCard> {
                   ),
                 ),
 
-                // 3. SABİT ALT BÖLÜM (Ping Grafiği ve Loglar)
-                // Dalga formunu (Waveform) sadece USAGE sekmesinde goster
                 if (_activeTab == _DeviceCardTab.usage) ...[
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: outerPadding),
@@ -948,7 +967,6 @@ class _PrototypeDeviceCardState extends State<_PrototypeDeviceCard> {
                   const SizedBox(height: 12),
                 ],
                 
-                // Sabit Log Alanı
                 Container(
                   width: double.infinity,
                   height: bottomLogHeight,
@@ -1677,7 +1695,13 @@ class _PagerButton extends StatelessWidget {
 }
 
 class _Sidebar extends StatelessWidget {
-  const _Sidebar();
+  final int selectedIndex;
+  final ValueChanged<int> onItemSelected;
+
+  const _Sidebar({
+    required this.selectedIndex,
+    required this.onItemSelected,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1693,14 +1717,17 @@ class _Sidebar extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            _SidebarBrand(),
-            SizedBox(height: 32),
-            _SidebarMenu(),
-            Spacer(),
-            Divider(color: Color(0xFFF1F5F9), height: 1),
-            SizedBox(height: 20),
-            _SidebarProfile(),
+          children: [
+            const _SidebarBrand(),
+            const SizedBox(height: 32),
+            _SidebarMenu(
+              selectedIndex: selectedIndex,
+              onItemSelected: onItemSelected,
+            ),
+            const Spacer(),
+            const Divider(color: Color(0xFFF1F5F9), height: 1),
+            const SizedBox(height: 20),
+            const _SidebarProfile(),
           ],
         ),
       ),
@@ -1751,40 +1778,51 @@ class _SidebarBrand extends StatelessWidget {
 }
 
 class _SidebarMenu extends StatelessWidget {
-  const _SidebarMenu();
+  final int selectedIndex;
+  final ValueChanged<int> onItemSelected;
+
+  const _SidebarMenu({
+    required this.selectedIndex,
+    required this.onItemSelected,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    return Column(
       children: [
         _SidebarItem(
           icon: Icons.dashboard_rounded,
           label: 'Dashboard',
-          isActive: false,
+          isActive: selectedIndex == 0,
+          onTap: () => onItemSelected(0),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         _SidebarItem(
           icon: Icons.memory_rounded,
           label: 'Stations',
-          isActive: true,
+          isActive: selectedIndex == 1,
+          onTap: () => onItemSelected(1),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         _SidebarItem(
           icon: Icons.auto_awesome_rounded,
           label: 'Automations',
-          isActive: false,
+          isActive: selectedIndex == 2,
+          onTap: () => onItemSelected(2),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         _SidebarItem(
           icon: Icons.analytics_rounded,
           label: 'Library',
-          isActive: false,
+          isActive: selectedIndex == 3, // Kütüphane İndeksi
+          onTap: () => onItemSelected(3),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         _SidebarItem(
           icon: Icons.settings_rounded,
           label: 'Settings',
-          isActive: false,
+          isActive: selectedIndex == 4,
+          onTap: () => onItemSelected(4),
         ),
       ],
     );
@@ -1795,11 +1833,13 @@ class _SidebarItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool isActive;
+  final VoidCallback onTap;
 
   const _SidebarItem({
     required this.icon,
     required this.label,
     required this.isActive,
+    required this.onTap,
   });
 
   @override
@@ -1815,7 +1855,7 @@ class _SidebarItem extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () {},
+        onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
@@ -1843,7 +1883,6 @@ class _SidebarItem extends StatelessWidget {
   }
 }
 
-// --- YENİ: HOVER (PARLAMA) EFEKTLİ PROFİL KARTI ---
 class _SidebarProfile extends StatefulWidget {
   const _SidebarProfile();
 
@@ -2531,10 +2570,10 @@ class _SystemLogsPanel extends StatelessWidget {
               itemBuilder: (context, index) {
                 final log = visibleLogs[index];
                 Color logColor = const Color(0xFF00FF41);
-                if (log.contains('OTOMASYON')) {
+                if (log.contains('OTOMASYON') || log.contains('SİSTEM KURTARMA')) {
                   logColor = Colors.orangeAccent;
                 }
-                if (log.contains('HATA')) {
+                if (log.contains('HATA') || log.contains('Timeout')) {
                   logColor = Colors.redAccent;
                 }
 

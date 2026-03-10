@@ -1,0 +1,104 @@
+[08:23:52] [SYS] HomeDash ait sistemler başlatıldı. Cihazlar hazır.
+[08:24:02] [SYS] M2M Otomasyon döngüsü başlatıldı (10 sn aralık).
+[08:24:05] [192.168.55.29] Telemetry synced (138ms)
+
+[08:24:06] [192.168.55.20] CMD: relay_1 -> OFF
+[08:24:08] [192.168.55.20] CMD: relay_1 -> ON
+[08:24:13] [192.168.55.20] CMD: relay_1 -> OFF
+[08:24:09] [192.168.55.29] Telemetry synced (63ms)
+e
+[08:24:17] [192.168.55.29] CMD: relay_1 -> ON
+[08:24:19] [192.168.55.29] CMD: relay_1 -> OFF
+[08:24:21] [192.168.55.29] CMD: relay_1 -> ON
+[08:24:23] [192.168.55.29] CMD: relay_1 -> OFF
+[08:24:25] [192.168.55.28] Timeout: Host unreachable
+[08:24:25] [192.168.55.29] SYS_CMD: Rebooting...
+aşlatılıyor...
+[08:24:35] [192.168.55.29] Telemetry synced (138ms)
+
+[08:24:36] [192.168.55.29] CMD: relay_1 -> ON
+[08:24:37] [192.168.55.29] CMD: relay_1 -> OFF
+[08:24:41] [192.168.55.20] CMD: relay_1 -> ON
+[08:24:45] [192.168.55.29] AUTO_CMD: relay_1 -> ON
+i! Hedef (.29) güncelleniyor.
+[08:24:45] [SYS] OTOMASYON BAŞARILI: M2M komutu uygulandı.
+[08:24:48] [SYS] Döngü kullanıcı tarafından durduruldu.
+[08:24:50] [SYS] Sistem kapatılıyor, bağlantılar kesiliyor...
+[08:28:13] [SYS] HomeDash ait sistemler başlatıldı. Cihazlar hazır.
+[08:28:17] [SYS] M2M Otomasyon döngüsü başlatıldı (10 sn aralık).
+[08:28:19] [192.168.55.29] Telemetry synced (127ms)
+
+[08:28:20] [192.168.55.20] CMD: relay_1 -> OFF
+[08:28:20] [192.168.55.20] CMD: relay_1 -> ON
+[08:28:22] [192.168.55.20] CMD: relay_1 -> OFF
+[08:28:23] [192.168.55.20] CMD: relay_1 -> ON
+[08:28:27] [192.168.55.20] CMD: relay_1 -> OFF
+[08:28:29] [192.168.55.29] Telemetry synced (39ms)
+e
+[08:28:29] [192.168.55.20] SYS_CMD: Rebooting...
+aşlatılıyor...
+[08:28:39] [192.168.55.29] Telemetry synced (83ms)
+e
+[08:28:40] [192.168.55.20] CMD: relay_1 -> ON
+[08:28:44] [192.168.55.29] CMD: relay_1 -> OFF
+[08:28:44] [192.168.55.29] CMD: relay_1 -> ON
+[08:28:45] [192.168.55.29] CMD: relay_1 -> OFF
+[08:28:46] [192.168.55.29] CMD: relay_1 -> ON
+[08:28:48] [SYS] Döngü kullanıcı tarafından durduruldu.
+[08:28:49] [192.168.55.29] AUTO_CMD: relay_1 -> ON
+i! Hedef (.29) güncelleniyor.
+[08:28:49] [SYS] OTOMASYON BAŞARILI: M2M komutu uygulandı.
+[08:28:52] [SYS] Sistem kapatılıyor, bağlantılar kesiliyor...
+[09:02:58] [SYS] HomeDash ait sistemler başlatıldı. Cihazlar hazır.
+[09:03:28] [SYS] M2M Otomasyon döngüsü başlatıldı (10 sn aralık).
+[09:03:30] [192.168.55.29] Telemetry synced (95ms)
+e
+[09:03:32] [192.168.55.20] CMD: relay_1 -> OFF
+[09:03:34] [192.168.55.20] CMD: relay_1 -> ON
+[09:03:40] [192.168.55.29] Telemetry synced (122ms)
+
+[09:03:50] [192.168.55.29] Telemetry synced (55ms)
+e
+[09:04:00] [192.168.55.29] Telemetry synced (92ms)
+e
+[09:04:10] [192.168.55.20] CMD: relay_1 -> OFF
+[09:04:10] [192.168.55.29] Telemetry synced (126ms)
+
+[09:04:12] [192.168.55.20] CMD: relay_1 -> ON
+[09:04:17] [192.168.55.20] CMD: relay_1 -> OFF
+[09:04:20] [192.168.55.28] Timeout: Host unreachable
+[09:04:30] [192.168.55.29] Telemetry synced (95ms)
+e
+[09:04:31] [192.168.55.20] CMD: relay_1 -> ON
+[09:04:40] [192.168.55.29] AUTO_CMD: relay_1 -> ON
+i! Hedef (.29) güncelleniyor.
+[09:04:40] [SYS] OTOMASYON BAŞARILI: M2M komutu uygulandı.
+[09:04:48] [192.168.55.20] CMD: relay_1 -> OFF
+[09:04:49] [192.168.55.20] CMD: relay_1 -> ON
+[09:04:50] [192.168.55.29] Telemetry synced (63ms)
+e
+[09:04:50] [192.168.55.20] CMD: relay_1 -> OFF
+[09:04:52] [192.168.55.20] CMD: relay_1 -> ON
+[09:04:55] [192.168.55.20] CMD: relay_1 -> OFF
+[09:05:00] [192.168.55.29] Telemetry synced (99ms)
+e
+[09:05:10] [192.168.55.29] Telemetry synced (36ms)
+e
+[09:05:20] [192.168.55.29] Telemetry synced (69ms)
+e
+[09:05:30] [192.168.55.29] Telemetry synced (105ms)
+
+[09:05:40] [192.168.55.29] Telemetry synced (37ms)
+e
+[09:05:50] [192.168.55.29] Telemetry synced (73ms)
+e
+[09:06:00] [192.168.55.29] Telemetry synced (108ms)
+
+[09:06:10] [192.168.55.29] Telemetry synced (42ms)
+e
+[09:06:20] [192.168.55.29] Telemetry synced (78ms)
+e
+[09:06:30] [SYS] Döngü kullanıcı tarafından durduruldu.
+[09:06:30] [192.168.55.29] Telemetry synced (112ms)
+
+[09:07:01] [SYS] Sistem kapatılıyor, bağlantılar kesiliyor...

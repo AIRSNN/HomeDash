@@ -14,3 +14,5 @@ Bu dosya projede yapilan mimari degisiklikleri, yeni eklenen onemli ozellikleri 
 - [x] Faz 4-a: Dry-run komut onizleme - `generateDryRunPayload()` + "Test Komutu Hazirla" butonu (`device_table.dart`, `device_command_service.dart`)
 - [x] `/command` JSON sema SOT belgesi olusturuldu (`docs/COMMAND_SCHEMA_SOT.md`) - 5 alan, 6 dogrulama kurali, 3 ornek payload
 - [x] Faz 4-b TAMAMLANDI: Sema-dogrulamali gercek `sendCommand()` HTTP POST islemi
+- [ ] Faz 6 AKTIF: Yerel dosya tabanli loglama servisi ve Library sayfasi iskeleti olusturuldu.
+  App Shell mimarisi IndexedStack ile yenilendi. Kutuphane ve Istasyon sekmeleri arasi kayipsiz gecis saglandi. Log bloat (sisme) ve race condition hatalari Queue mimarisiyle cozuldu.
