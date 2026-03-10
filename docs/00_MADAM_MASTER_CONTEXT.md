@@ -1,55 +1,55 @@
-# MADAM Projesi - Ana Bağlam Dosyası (Güncel: 6 Mart 2026)
+# MADAM Projesi - Ana Baglam Dosyasi (Guncel: 10 Mart 2026)
 
-## 1. Proje Kimliği
-- Proje adı: **HomeDash**
-- Kod adı: **MADAM** (Multi-Agent Device Automation Manager)
-- Amaç: Ev içi test ortamında çalışan, ESP8266 ve ESP32-C6 tabanlı cihazları merkezi bir Windows kontrol merkezi üzerinden izleyen ve yöneten bir IoT ekosistemidir.
-- Ana kontrol uygulaması: **Windows üzerinde çalışan Flutter/Dart tabanlı HomeDash dashboard**
+## 1. Proje Kimligi
+- Proje adi: **HomeDash**
+- Kod adi: **MADAM** (Multi-Agent Device Automation Manager)
+- Amac: Ev ici test ortaminda calisan, ESP8266 ve ESP32-C6 tabanli cihazlari merkezi bir Windows kontrol merkezi uzerinden izleyen ve yoneten bir IoT ekosistemidir.
+- Ana kontrol uygulamasi: **Windows uzerinde calisan Flutter/Dart tabanli HomeDash dashboard**
 
-## 2. Kısaltmalar
-- **MADAM**: HomeDash projesinin kod adı
-- **Master Node**: Ana kontrol sorumluluğu verilen ESP32-C6 düğüm
-- **Node**: Sensör / aktüatör görevli uç cihaz
+## 2. Kisaltmalar
+- **MADAM**: HomeDash projesinin kod adi
+- **Master Node**: Ana kontrol sorumlulugu verilen ESP32-C6 dugum
+- **Node**: Sensor / aktuator gorevli uc cihaz
 
 ## 3. Temel Hedef
-Bu sistemin ilk hedefi, laboratuvar/test ortamında çalışan cihazları güvenilir şekilde:
-1. ağda görmek,
-2. durumlarını izlemek,
-3. JSON tabanlı veri alışverişi yapmak,
-4. röle ve sensör senaryolarını kontrollü biçimde çalıştırmak,
-5. ileride daha büyük akıllı ev mimarisine evrilebilecek temiz bir temel oluşturmaktır.
+Bu sistemin ilk hedefi, laboratuvar/test ortaminda calisan cihazlari guvenilir sekilde:
+1. agda gormek,
+2. durumlarini izlemek,
+3. JSON tabanli veri alisverisi yapmak,
+4. role ve sensor senaryolarini kontrollu bicimde calistirmak,
+5. ileride daha buyuk akilli ev mimarisine evrilebilecek temiz bir temel olusturmaktir.
 
-## 4. Sistem Özeti & Ağ Topolojisi
-- Ağ omurgası 192.168.55.x alt ağındadır.
-- **ESP8266 (192.168.55.20):** Sensör/Tetikleyici (GPIO5 -> Röle)
-- **ESP32-C6 (192.168.55.29):** Hedef Kontrolcü / Master (GPIO18 -> Röle)
-- Dashboard, Windows PC üzerinde merkezi yönetim katmanıdır.
-- İlk aşamada odak noktası: **kararlı temel altyapı**, estetikten önce **çalışan çekirdek sistem**.
+## 4. Sistem Ozeti ve Ag Topolojisi
+- Ag omurgasi 192.168.55.x alt agindadir.
+- **ESP8266 (192.168.55.20):** Sensor/Tetikleyici (GPIO5 -> Role)
+- **ESP32-C6 (192.168.55.29):** Hedef Kontrolcu / Master (GPIO18 -> Role)
+- Dashboard, Windows PC uzerinde merkezi yonetim katmanidir.
+- Ilk asamada odak noktasi: **kararli temel altyapi**, estetikten once **calisan cekirdek sistem**.
 
-## 5. Tek Doğruluk Kaynağı (SOT) Dosyaları
-- `docs/00_MADAM_MASTER_CONTEXT.md` -> Projenin genel bağlamı
-- `docs/01_MADAM_HARDWARE_AND_NETWORK_SOT.md` -> Donanım ve ağ sabitleri (değişmez kabul edilir)
-- `docs/02_MADAM_AI_DEVELOPMENT_RULES.md` -> AI için çalışma kuralları
-- `docs/03_MADAM_PHASED_ROADMAP.md` -> Faz bazlı ilerleme planı
-- `docs/04_MADAM_PROMPT_TEMPLATES.md` -> Tekrar kullanılabilir prompt şablonları
+## 5. Tek Dogruluk Kaynagi (SOT) Dosyalari
+- `docs/00_MADAM_MASTER_CONTEXT.md` -> Projenin genel baglami
+- `docs/01_MADAM_HARDWARE_AND_NETWORK_SOT.md` -> Donanim ve ag sabitleri (degismez kabul edilir)
+- `docs/02_MADAM_AI_DEVELOPMENT_RULES.md` -> AI icin calisma kurallari
+- `docs/03_MADAM_PHASED_ROADMAP.md` -> Faz bazli ilerleme plani
+- `docs/04_MADAM_PROMPT_TEMPLATES.md` -> Tekrar kullanilabilir prompt sablonlari
 
-## 6. Yazılım Mimarisi İlkeleri
-- **UI Katmanı Korunacaktır:** `dashboard_page.dart` ve UI bileşenleri stabildir. Sol menü, üst bar ve renk geçişlerine KESİNLİKLE dokunulmaz.
-- **M2M Logic:** Edge Trigger (Yükselen Kenar). Sadece durum OFF'tan ON'a geçtiğinde tetikleme yapılır.
-- UI ile ağ / cihaz mantığı birbirinden ayrılmalı.
-- Ağ hataları sessizce yutulmamalı; loglanmalı.
-- Timer, ping ve heartbeat işlemleri non-blocking olmalı.
+## 6. Yazilim Mimarisi Ilkeleri
+- **UI Katmani Korunacaktir:** `dashboard_page.dart` ve UI bilesenleri stabildir. Sol menu, ust bar ve renk gecislerine KESINLIKLE dokunulmaz.
+- **M2M Logic:** Edge Trigger (Yukselen Kenar). Sadece durum OFF'tan ON'a gectiginde tetikleme yapilir.
+- UI ile ag / cihaz mantigi birbirinden ayrilmalidir.
+- Ag hatalari sessizce yutulmamali; loglanmalidir.
+- Timer, ping ve heartbeat islemleri non-blocking olmalidir.
 
-## 7. İlk Aşama Başarı Kriteri & Mevcut Durum
-İlk aşama başarı kriterleri (cihazları ağda görme, canlı durum gösterme) sağlanmıştır. `docs/Arduino/HomeDash/` içindeki ESP kodları hazırdır.
+## 7. Ilk Asama Basari Kriteri ve Mevcut Durum
+Ilk asama basari kriterleri (cihazlari agda gorme, canli durum gosterme) saglanmistir. `docs/Arduino/HomeDash/` icindeki ESP kodlari hazirdir.
 
-**Güncel İyileştirme Backlog'u (Mimari Kararlar):**
-1. **State Yönetimi Optimizasyonu:** `dashboard_state.dart` içindeki polling işlemi `fetch` (veriyi topla) ve `commit` (state'e yaz) olarak ayrılacak (`Future.wait` darboğazını aşmak için).
-2. **Log Tamponu (Buffer):** Gereksiz UI rebuild'lerini önlemek için loglar sınırlanacak ve `notifyListeners` opsiyonel hale getirilecek.
+**Guncel Iyilestirme Backlog'u (Mimari Kararlar):**
+1. **State Yonetimi Optimizasyonu (TAMAMLANDI):** `dashboard_state.dart` icindeki polling islemi `fetch` (veriyi topla) ve `commit` (state'e yaz) olarak ayrilacak (`Future.wait` darbo gazini asmak icin).
+2. **Log Tamponu (Buffer) (TAMAMLANDI):** Gereksiz UI rebuild'lerini onlemek icin loglar sinirlanacak ve `notifyListeners` opsiyonel hale getirilecek.
 
-## 8. Kapsam Dışı Olanlar (Şimdilik)
-- karmaşık kullanıcı yetkilendirme
+## 8. Kapsam Disi Olanlar (Simdilik)
+- karmasik kullanici yetkilendirme
 - bulut senkronizasyonu
-- dış internet erişimi
-- ileri seviye şifreleme / üretim seviyesi güvenlik
-- otomatik OTA yaşam döngüsü
+- dis internet erisimi
+- ileri seviye sifreleme / uretim seviyesi guvenlik
+- otomatik OTA yasam dongusu

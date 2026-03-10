@@ -1,8 +1,7 @@
-﻿/// MADAM Projesi - Cihaz Kontrol Servisi (Brute-Force Debug Versiyonu)
+﻿/// MADAM Projesi - Cihaz Kontrol Servisi (Faz 4-b Sema Dogrulamali + Reboot Izinli)
 import 'dart:io';
 import 'dart:convert';
 import '../config/network_constants.dart';
-import '../config/device_registry.dart';
 import '../models/device_status.dart';
 
 class DeviceCommandService {
@@ -13,65 +12,104 @@ class DeviceCommandService {
     _client.close(force: true);
   }
 
+  /// SOT Belgesine gore komut paketini dogrular (COMMAND_SCHEMA_SOT.md)
+  bool _validatePayload(Map<String, dynamic> payload) {
+    final action = payload['action'];
+    final target = payload['target'];
+    final deviceIp = payload['deviceIp'];
+    final value = payload['value'];
+
+    // R-01: Action alani zorunlu ve izin verilen degerlerden olmali
+    // Mimar Notu: Arayuzdeki cihaz resetleme islemi icin 'reboot' ve 'reset' kalkan iznine eklendi.
+    const validActions = ['toggle', 'open', 'close', 'read', 'ping', 'reboot', 'reset'];
+    if (action == null || !validActions.contains(action)) return false;
+
+    // R-02: Target alani zorunlu ve action ile uyumlu olmali
+    if (['toggle', 'open', 'close'].contains(action)) {
+      if (target != 'relay_1' && target != 'relay_2') return false;
+    } else if (action == 'read') {
+      if (target != 'sensor_data') return false;
+    } else if (['ping', 'reboot', 'reset'].contains(action)) {
+      // Reboot/Ping komutlarinda hedef genelde 'system' olur veya bos birakilabilir
+      if (target != 'system' && target != null) return false;
+    } else {
+      return false; // Bilinmeyen kombinasyon (R-05)
+    }
+
+    // R-03: deviceIp zorunlu ve gecerli aralikta olmali (192.168.55.20 - 29)
+    if (deviceIp == null || deviceIp is! String) return false;
+    final ipParts = deviceIp.split('.');
+    if (ipParts.length != 4 || '${ipParts[0]}.${ipParts[1]}.${ipParts[2]}' != '192.168.55') {
+      return false;
+    }
+    final lastOctet = int.tryParse(ipParts[3]);
+    if (lastOctet == null || lastOctet < 20 || lastOctet > 29) return false;
+
+    // R-04: action = "read" icin value bos olamaz
+    if (action == 'read') {
+      if (value == null || value.toString().trim().isEmpty) return false;
+    }
+
+    return true; // Tum testleri gecti, guvenli.
+  }
+
   Future<bool> sendCommand(
     String ipAddress,
     Map<String, dynamic> commandJson,
   ) async {
-    try {
-      final action = commandJson['action'];
-      final target = commandJson['target'];
-      final deviceIp = commandJson['deviceIp'];
-      final value = commandJson.containsKey('value')
-          ? commandJson['value']
-          : null;
+    // 1. Sema Dogrulamasi (Zirh)
+    if (!_validatePayload(commandJson)) {
+      // Hangi payload'un reddedildigini terminale acikca yazdiriyoruz
+      print('[$ipAddress] POST IPTAL: Gecersiz payload semasi. Reddedilen: $commandJson');
+      return false;
+    }
 
-      // 1. Manuel JSON String Oluşturma (PowerShell ile birebir aynı format)
-      // Boşluksuz ve en yalın haliyle: {"action":"toggle","target":"relay_1","value":null}
-      final String valueString = (value == null)
-          ? 'null'
-          : (value is bool ? value.toString() : '"$value"');
-      final String manualBody =
-          '{"action":"$action","target":"$target","value":$valueString}';
+    // R-06: Timestamp yoksa ekle
+    if (!commandJson.containsKey('timestamp')) {
+      commandJson['timestamp'] = DateTime.now().toIso8601String();
+    }
+
+    try {
+      // ESP cihazlarinin json ayrismasini bozmamak icin standart temiz encode
+      final String requestBody = jsonEncode(commandJson);
 
       final uri = Uri.http(
-        '$deviceIp:${NetworkConstants.apiPort}',
+        '$ipAddress:${NetworkConstants.apiPort}',
         NetworkConstants.endpointCommand,
       );
 
-      print('--- KRITIK DENEME ---');
-      print('URI: $uri');
-      print('MANUEL BODY: $manualBody');
+      print('[$ipAddress] POST -> $uri');
+      print('PAYLOAD: $requestBody');
 
       final request = await _client
           .postUrl(uri)
           .timeout(const Duration(seconds: 3));
 
-      // 2. Hassas Header Ayarları
+      // Hassas Header Ayarlari
       request.headers.set('Content-Type', 'application/json; charset=utf-8');
       request.headers.set('Accept', 'application/json');
-      request.headers.set(
-        'Connection',
-        'close',
-      ); // ESP için bağlantıyı açık tutmaya çalışmasın
+      request.headers.set('Connection', 'close'); // Baglantiyi acik tutma
 
-      // 3. Byte bazlı gönderim
-      final bodyBytes = utf8.encode(manualBody);
+      // Byte bazli gonderim (Turkce karakter vs sorunu olmamasi icin)
+      final bodyBytes = utf8.encode(requestBody);
       request.contentLength = bodyBytes.length;
       request.add(bodyBytes);
 
       final response = await request.close().timeout(
         const Duration(seconds: 3),
       );
-      print('HTTP Response Status: ${response.statusCode}');
+      
+      print('[$ipAddress] HTTP Status: ${response.statusCode}');
 
+      // HTTP 2xx durumlari basarili kabul edilir
       return response.statusCode >= 200 && response.statusCode < 300;
     } catch (e) {
-      print('HTTP Istek Hatasi: $e');
+      print('[$ipAddress] HTTP Istek Hatasi: $e');
       return false;
     }
   }
 
-  /// Dry-Run testi metodu (Arayüz uyumluluğu için korunmuştur)
+  /// Dry-Run testi metodu (Arayuz uyumlulugu icin korunmustur)
   Map<String, dynamic> generateDryRunPayload(String role, String ipAddress) {
     String action = role.toUpperCase().contains('RELAY')
         ? 'toggle'
@@ -79,16 +117,18 @@ class DeviceCommandService {
     String target = role.toUpperCase().contains('RELAY')
         ? 'relay_1'
         : (role.toUpperCase().contains('SENSOR') ? 'sensor_data' : 'system');
+    
     return {
       'action': action,
       'target': target,
-      'value': null,
+      // R-04 Kurali geregi read isleminde value null olamaz, default 'all' gonderilir.
+      'value': action == 'read' ? 'all' : null, 
       'deviceIp': ipAddress,
       'timestamp': DateTime.now().toIso8601String(),
     };
   }
 
-  /// Cihaz durumunu sorgulama (Online/Offline kontrolü)
+  /// Cihaz durumunu sorgulama (Online/Offline kontrolu)
   Future<DeviceStatus> getDeviceStatus(String ipAddress) async {
     try {
       final uri = Uri.http(

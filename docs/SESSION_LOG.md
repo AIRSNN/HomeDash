@@ -1,29 +1,48 @@
 # SESSION_LOG.md
 
-Bu dosya oturum sırasındaki önemli aşamaları, kararları ve tamamlanan adımları kaydetmek için kullanılacaktır.
+Bu dosya oturum sirasindaki onemli asamalari, kararlari ve tamamlanan adimlari kaydetmek icin kullanilacaktir.
 
-## İkinci Oturum Kayıtları (Flutter İskelet Kurulumu)
-- **Klasör Yapısı:** Proje genel gereksinimlerine göre `/lib` alt klasörleri (`config`, `models`, `services`, `pages`, `widgets`, `state`) ve `/docs`, `/test` gibi ana dizin iskeleti kuruldu.
-- **Flutter Temel Dosyaları:** `main.dart` ve `app.dart` giriş sınıfları "HomeDash (MADAM)" olarak ilklendirildi ancak derlenebilir placeholder (iş mantığı olmayan iskelet) halinde bırakıldı.
-- **Güvenli Ağ Sabitleri:** `docs/01_MADAM_HARDWARE_AND_NETWORK_SOT.md` bağlam dosyasına sadık kalınarak `lib/config/network_constants.dart` içerisine IP (`192.168.55.100`), SSID (`llama_iot`), subnet ve mask (`255.255.255.0`) gibi veriler eklenerek korundu.
-- **Donanım Kaydı:** `lib/config/device_registry.dart` dosyası güncellenerek IP `192.168.55.20-28` sensör, `.29` ise açık yorumla "Ana Kontrol Düğümü / Primary Controller" rolüne atandı.
-- **UI İskeleti ve State:** `DashboardPage` stateful yapıya geçirilerek `DashboardState` ile entegre edildi, cihaz listesi `DeviceTable` aracılığıyla görüntülendi. Ping değerleri ve log satırları için yer tutucu (placeholder) nesneler konuldu.
-## Bugünkü Oturum Kayıtları (Flutter Build, TCP Ping ve JSON Okuma)
-- **Güvenli Windows Build:** `homedash` projesi `flutter create` ile Windows altyapısına kavuşturuldu ve `pubspec.yaml` hazırlandı. Widget ağacındaki `const` kaynaklı runtime çökmeleri giderilerek `%100` hatasız derleme sağlandı.
-- **Asenkron Ağ Tarama (Faz 2):** ICMP yerine Dart `dart:io` `Socket` kütüphanesi kullanılarak eşzamanlı (non-blocking) TCP 8080 port yoklaması (`ping_service.dart`) kodlandı ve `DashboardState` timer'ı ile bağlandı.
-- **HTTP JSON Durum Okuma (Faz 3):** `device_command_service.dart` üzerinden `GET /status` endpointine istek atan yapı eklendi. Çökmeyi engelleyen null-safe `DeviceStatus` fallback sistemi geliştirildi.
-- **UI Entegrasyonu:** `DeviceTable` içerisine "Durum Verisi / JSON" sütunu eklendi. Gelen dinamik JSON verisi (relay, is_active, temperature vb.) parse edilerek kısa özet olarak arayüze bastırıldı. Timer aktifleştikçe UI yenilenmesi sağlandı.
+## Architecture Update (2026-03-10)
+- `dashboard_state.dart` uzerinde Fetch/Commit mimarisi kurularak cihaz polling dongusu optimize edildi.
+- UI darbo gazlari ve RenderFlex tasmalar tamamen giderildi.
+- Log hafizasi sinirlandirilarak bellek sizintilarinin onune gecildi.
+- Sistem Phase 6 (Gunlukleme) ve Phase 7 (Paketleme) asamalarina hazir hale geldi.
 
-## Bugünkü Oturum Kayıtları — Ayrıntılar Dialogu ve Dry-Run Önizleme (2026-03-05)
-- **Ayrıntılar Dialogu (Faz 4-a):** `DeviceTable` satır eylemlerine (`settings` ikonu) bağlı salt-okuma bir cihaz detay dialogu eklendi. Dialog; IP, durum (Online/Offline), son görülme saati, JSON özeti ve `rawData` anahtar listesini göstermektedir.
-- **Dry-Run Komut Önizleme:** Dialog içine "Test Komutu Hazırla" butonu entegre edildi. Buton yalnızca cihaz online iken görünür; tıklandığında `DeviceCommandService.generateDryRunPayload()` çağrılır, üretilen payload (`action`, `target`, `value`, `deviceIp`) dialog içinde monospace kutuda gösterilir. Hiçbir HTTP isteği yapılmaz.
-- **Eksik Import Giderildi:** `DeviceCommandService` sınıfı `device_table.dart` içinde kullanılıyor ancak import edilmemişti; `lib/services/device_command_service.dart` import satırı eklenerek derleme hatası temizlendi.
-- **Windows Build Başarılı:** `flutter build windows` çalıştırıldı, `homedash.exe` başarıyla üretildi (çıkış kodu 0). `flutter analyze` sıfır hata döndürdü (yalnızca `info`-seviyesi doc comment uyarıları).
-- **`/command` JSON Şema SOT Oluşturuldu:** `docs/COMMAND_SCHEMA_SOT.md` belgesi tüm payload alanlarını (`action`, `target`, `value`, `deviceIp`, `timestamp`), izin verilen değerleri, doğrulama kurallarını (R-01–R-06) ve 3 örnek payload'ı içerecek biçimde hazırlandı ve doğrulandı.
-- **Gerçek `sendCommand()` Uygulaması TAMAMLANMADI:** Schema-doğrulamalı HTTP POST implementasyonu bu oturumda başlatıldı ancak agent kesintisi nedeniyle tamamlanamadı. `device_command_service.dart` içindeki `sendCommand()` hâlâ placeholder durumundadır ve değiştirilmemiştir. Bu görev sonraki oturuma ertelendi.
+## Session Update - UI Stabilization & Phase 4-a Completion (2026-03-10)
+- "RenderFlex overflow" tasinti hatasi, `dashboard_page.dart` icerisinde sabit ust bilgi (header), esnek/kaydirilabilir orta alan (scrollable body) ve sabit alt log alani (footer) mimarisi kurularak kalici olarak cozuldu.
+- Dalga formu (Waveform) grafigi yalnizca USAGE sekmesine izole edildi.
+- Faz 4-a (Ayrintilar Dialogu ve Dry-run Onizleme) ozellikleri hicbir zarar gormeden yeni arayuz zirhi icine entegre edildi.
+- UI tamamen stabil hale getirildi ve Git yedegi alindi. Siradaki hedef Faz 4-b olarak belirlendi.
 
-**Bu Oturumun Sonu — Kararlı Durum:**
-Proje `flutter build windows` ile başarıyla derlenmekte, dry-run komut önizlemesi çalışmakta, gerçek POST devre dışıdır. Sonraki adım: şema onayı alındıktan sonra `sendCommand()` implementasyonu.
+## Phase 4-b Validation & Resilience (2026-03-10)
+- Reboot/reset komutlari guvenlik kalkanina eklendi.
+- Try/Catch bloklarinin `HttpException` durumlarinda uygulamayi cokmekten kurtardigi teyit edildi.
+- ESP firmware'leri ile %100 uyum saglandi.
+
+## Ikinci Oturum Kayitlari (Flutter Iskelet Kurulumu)
+- **Klasor Yapisi:** Proje genel gereksinimlerine gore `/lib` alt klasorleri (`config`, `models`, `services`, `pages`, `widgets`, `state`) ve `/docs`, `/test` gibi ana dizin iskeleti kuruldu.
+- **Flutter Temel Dosyalari:** `main.dart` ve `app.dart` giris siniflari "HomeDash (MADAM)" olarak ilklendirildi ancak derlenebilir placeholder (is mantigi olmayan iskelet) halinde birakildi.
+- **Guvenli Ag Sabitleri:** `docs/01_MADAM_HARDWARE_AND_NETWORK_SOT.md` baglam dosyasina sadik kalinarak `lib/config/network_constants.dart` icerisine IP (`192.168.55.100`), SSID (`llama_iot`), subnet ve mask (`255.255.255.0`) gibi veriler eklenerek korundu.
+- **Donanim Kaydi:** `lib/config/device_registry.dart` dosyasi guncellenerek IP `192.168.55.20-28` sensor, `.29` ise acik yorumla "Ana Kontrol Dugumu / Primary Controller" rolune atandi.
+- **UI Iskeleti ve State:** `DashboardPage` stateful yapiya gecirilerek `DashboardState` ile entegre edildi, cihaz listesi `DeviceTable` araciligiyla goruntulendi. Ping degerleri ve log satirlari icin yer tutucu (placeholder) nesneler konuldu.
+
+## Bugunku Oturum Kayitlari (Flutter Build, TCP Ping ve JSON Okuma)
+- **Guvenli Windows Build:** `homedash` projesi `flutter create` ile Windows altyapisina kavusturuldu ve `pubspec.yaml` hazirlandi. Widget agacindaki `const` kaynakli runtime cokmeleri giderilerek `%100` hatasiz derleme saglandi.
+- **Asenkron Ag Tarama (Faz 2):** ICMP yerine Dart `dart:io` `Socket` kutuphanesi kullanilarak eszamanli (non-blocking) TCP 8080 port yoklamasi (`ping_service.dart`) kodlandi ve `DashboardState` timer'i ile baglandi.
+- **HTTP JSON Durum Okuma (Faz 3):** `device_command_service.dart` uzerinden `GET /status` endpointine istek atan yapi eklendi. Cokmeyi engelleyen null-safe `DeviceStatus` fallback sistemi gelistirildi.
+- **UI Entegrasyonu:** `DeviceTable` icerisine "Durum Verisi / JSON" sutunu eklendi. Gelen dinamik JSON verisi (relay, is_active, temperature vb.) parse edilerek kisa ozet olarak arayuze bastirildi. Timer aktiflestikce UI yenilenmesi saglandi.
+
+## Bugunku Oturum Kayitlari - Ayrintilar Dialogu ve Dry-Run Onizleme (2026-03-05)
+- **Ayrintilar Dialogu (Faz 4-a):** `DeviceTable` satir eylemlerine (`settings` ikonu) bagli salt-okuma bir cihaz detay dialogu eklendi. Dialog; IP, durum (Online/Offline), son gorulme saati, JSON ozeti ve `rawData` anahtar listesini gostermektedir.
+- **Dry-Run Komut Onizleme:** Dialog icine "Test Komutu Hazirla" butonu entegre edildi. Buton yalnizca cihaz online iken gorunur; tiklandiginda `DeviceCommandService.generateDryRunPayload()` cagrilir, uretilen payload (`action`, `target`, `value`, `deviceIp`) dialog icinde monospace kutuda gosterilir. Hicbir HTTP istegi yapilmaz.
+- **Eksik Import Giderildi:** `DeviceCommandService` sinifi `device_table.dart` icinde kullaniliyor ancak import edilmemisti; `lib/services/device_command_service.dart` import satiri eklenerek derleme hatasi temizlendi.
+- **Windows Build Basarili:** `flutter build windows` calistirildi, `homedash.exe` basariyla uretildi (cikis kodu 0). `flutter analyze` sifir hata dondurdu (yalnizca `info`-seviyesi doc comment uyarilari).
+- **`/command` JSON Sema SOT Olusturuldu:** `docs/COMMAND_SCHEMA_SOT.md` belgesi tum payload alanlarini (`action`, `target`, `value`, `deviceIp`, `timestamp`), izin verilen degerleri, dogrulama kurallarini (R-01-R-06) ve 3 ornek payload'i icerecek bicimde hazirlandi ve dogrulandi.
+- **Gercek `sendCommand()` Uygulamasi TAMAMLANMADI:** Schema-dogrulamali HTTP POST implementasyonu bu oturumda baslatildi ancak agent kesintisi nedeniyle tamamlanamadi. `device_command_service.dart` icindeki `sendCommand()` hala placeholder durumundaydi ve degistirilmemisti. Bu gorev sonraki oturuma ertelendi.
+
+**Bu Oturumun Sonu - Kararli Durum:**
+Proje `flutter build windows` ile basariyla derlenmekte, dry-run komut onizlemesi calismakta, gercek POST devre disiydi. Sonraki adim: sema onayi alindiktan sonra `sendCommand()` implementasyonu.
+
 ## Session Update - Phase 4-b Completed (2026-03-05)
 - Implemented real `sendCommand()` in `lib/services/device_command_service.dart`.
 - Added schema validation for `action`, `target`, `deviceIp`, `value` (R-01..R-05).
@@ -33,12 +52,12 @@ Proje `flutter build windows` ile başarıyla derlenmekte, dry-run komut önizle
 - Timeout + try/catch added; non-2xx responses return failure.
 
 ## Session Update - Phase 4-c Completed (2026-03-05)
-- Added `Gerçek Komut Gönder` button in Device Details dialog next to dry-run action.
+- Added `Gercek Komut Gonder` button in Device Details dialog next to dry-run action.
 - Button calls `DeviceCommandService.sendCommand()` for selected device payload.
 - Result feedback is shown with SnackBar:
-  - Success: `Komut başarıyla gönderildi`
-  - Failure: `Komut gönderilemedi!`
-- Existing `Test Komutu Hazırla` dry-run flow was preserved.
+- Success: `Komut basariyla gonderildi`
+- Failure: `Komut gonderilemedi!`
+- Existing `Test Komutu Hazirla` dry-run flow was preserved.
 
 ## Session Update - Graceful Shutdown / Clean Exit (2026-03-05)
 - Top control bar'a ayri bir `Cikis` butonu eklendi (`Icons.exit_to_app`, kirmizi outlined stil).

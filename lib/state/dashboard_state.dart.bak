@@ -1,4 +1,4 @@
-/// MADAM Projesi - Merkezi Durum Yönetimi (M2M Otomasyon & Optimizasyon v3 - Fetch/Commit Ayrımı)
+/// MADAM Projesi - Merkezi Durum Yönetimi (M2M Otomasyon & Optimizasyon v3)
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -77,6 +77,7 @@ class DashboardState extends ChangeNotifier {
       pingLatencies[device.ip] = 0;
       deviceLogs[device.ip] = []; // Her cihaz için boş log listesi başlat
     }
+    // BAŞLANGIÇ MESAJI DÜZELTİLDİ (başladı -> başlatıldı)
     addLog('HomeDash ait sistemler başlatıldı. Cihazlar hazır.');
   }
 
@@ -155,8 +156,7 @@ class DashboardState extends ChangeNotifier {
     return success;
   }
 
-  // --- 1. FETCH FAZI (Sadece Veri Toplama) ---
-  Future<Map<String, dynamic>> _fetchDeviceState(DeviceInfo device) async {
+  Future<Map<String, dynamic>> _scanDevice(DeviceInfo device) async {
     int currentLatency = 0;
     DeviceStatus currentStatus = DeviceStatus(isOnline: false);
 
@@ -178,10 +178,17 @@ class DashboardState extends ChangeNotifier {
     };
   }
 
-  // --- 2. COMMIT FAZI (State'i Sessizce Güncelleme) ---
-  void _commitDeviceStates(List<Map<String, dynamic>> results) {
-    final now = DateTime.now();
+  Future<void> _scanAllDevices() async {
+    if (_isShuttingDown || isScanning) return;
+    isScanning = true;
+    notifyListeners();
+
     int onlineCount = 0;
+
+    final futures = devices.map((device) => _scanDevice(device)).toList();
+    final results = await Future.wait(futures);
+
+    final now = DateTime.now();
 
     for (var result in results) {
       final ip = result['ip'] as String;
@@ -204,7 +211,7 @@ class DashboardState extends ChangeNotifier {
                 bool actualState = status.isRelayActive(relayName);
 
                 if (actualState != desiredState) {
-                  addLog('SİSTEM KURTARMA: $ip $relayName senkronize ediliyor...', notify: false);
+                  addLog('SİSTEM KURTARMA: $ip $relayName senkronize ediliyor...', notify: true);
                   addDeviceLog(ip, 'RECOVERY: $relayName -> ${desiredState ? "ON" : "OFF"}', notify: false);
                   
                   _uiStateLocks[ip] = DateTime.now().add(const Duration(seconds: 4));
@@ -224,29 +231,13 @@ class DashboardState extends ChangeNotifier {
       if (status.isOnline) onlineCount++;
     }
 
-    statusMessage = 'Tarama bitti. $onlineCount cihaz aktif.';
-  }
-
-  // --- ANA DÖNGÜ KONTROLCÜSÜ ---
-  Future<void> _scanAllDevices() async {
-    if (_isShuttingDown || isScanning) return;
-    isScanning = true;
-    notifyListeners(); // Loader ikonunu göstermek için
-
-    // 1. FETCH
-    final futures = devices.map((device) => _fetchDeviceState(device)).toList();
-    final results = await Future.wait(futures);
-
-    // 2. COMMIT
-    _commitDeviceStates(results);
-
-    // 3. OTOMASYON
     await _checkAutomationLogic();
 
-    // 4. BİTİŞ VE NİHAİ BİLDİRİM
     isScanning = false;
     lastScanTime = DateTime.now();
-    notifyListeners(); // UI yalnızca bu noktada tek seferde yeniden çizilecek
+    statusMessage = 'Tarama bitti. $onlineCount cihaz aktif.';
+
+    notifyListeners();
   }
 
   Future<void> _checkAutomationLogic() async {
@@ -283,7 +274,7 @@ class DashboardState extends ChangeNotifier {
             try {
               final newTargetStatus = await _commandService.getDeviceStatus(relayIp);
               deviceStatuses[relayIp] = newTargetStatus;
-              // notifyListeners bilerek çağrılmıyor, ana döngünün sonunda yapılacak.
+              notifyListeners();
             } catch (_) {}
           } else {
             addLog('HATA: Otomasyon komutu iletilemedi.', notify: false);
