@@ -1,0 +1,117 @@
+[14:43:05] [SYS] HomeDash ait sistemler başlatıldı. Cihazlar hazır.
+[14:43:09] [SYS] M2M Otomasyon döngüsü başlatıldı (10 sn aralık).
+[14:43:11] [192.168.55.20] STATUS: Cihaz ağa bağlandı.
+[14:43:11] [192.168.55.29] STATUS: Cihaz ağa bağlandı.
+[14:44:31] [192.168.55.20] CMD: relay_1 -> ON
+[14:44:32] [192.168.55.20] CMD: relay_1 -> OFF
+[14:44:35] [SYS] Döngü kullanıcı tarafından durduruldu.
+[14:44:38] [SYS] Sistem kapatılıyor, bağlantılar kesiliyor...
+[14:45:24] [SYS] HomeDash ait sistemler başlatıldı. Cihazlar hazır.
+[14:45:27] [SYS] M2M Otomasyon döngüsü başlatıldı (10 sn aralık).
+[14:45:29] [192.168.55.20] STATUS: Cihaz ağa bağlandı.
+[14:45:29] [192.168.55.29] STATUS: Cihaz ağa bağlandı.
+[14:46:23] [SYS] Döngü kullanıcı tarafından durduruldu.
+[14:46:25] [SYS] Sistem kapatılıyor, bağlantılar kesiliyor...
+[14:59:49] [SYS] HomeDash ait sistemler başlatıldı. Cihazlar hazır.
+[15:01:06] [SYS] M2M Otomasyon döngüsü başlatıldı (10 sn aralık).
+[15:01:08] [192.168.55.20] STATUS: Cihaz ağa bağlandı.
+[15:01:08] [192.168.55.29] STATUS: Cihaz ağa bağlandı.
+[15:04:23] [SYS] Döngü kullanıcı tarafından durduruldu.
+[15:04:24] [SYS] Sistem kapatılıyor, bağlantılar kesiliyor...
+[15:07:18] [SYS] HomeDash ait sistemler başlatıldı. Cihazlar hazır.
+[15:07:21] [SYS] M2M Otomasyon döngüsü başlatıldı (10 sn aralık).
+[15:07:23] [192.168.55.20] STATUS: Cihaz ağa bağlandı.
+[15:07:23] [192.168.55.29] STATUS: Cihaz ağa bağlandı.
+[15:12:43] [SYS] HomeDash ait sistemler başlatıldı. Cihazlar hazır.
+[15:12:46] [SYS] M2M Otomasyon döngüsü başlatıldı (10 sn aralık).
+[15:12:48] [192.168.55.20] STATUS: Cihaz ağa bağlandı.
+[15:12:48] [192.168.55.29] STATUS: Cihaz ağa bağlandı.
+[15:12:56] [SYS] Döngü kullanıcı tarafından durduruldu.
+[15:13:02] [SYS] Sistem kapatılıyor, bağlantılar kesiliyor...
+[17:23:47] [SYS] HomeDash ait sistemler başlatıldı. Cihazlar hazır.
+[17:23:50] [SYS] M2M Otomasyon döngüsü başlatıldı (10 sn aralık).
+[17:23:52] [192.168.55.20] STATUS: Cihaz ağa bağlandı.
+[17:23:52] [192.168.55.29] STATUS: Cihaz ağa bağlandı.
+[17:24:04] [192.168.55.20] CMD: relay_1 -> ON
+[17:24:06] [192.168.55.20] CMD: relay_1 -> OFF
+[17:24:10] [192.168.55.20] CMD: relay_1 -> ON
+[17:24:12] [SYS] OTOMASYON: 192.168.55.20 tetiklendi! Hedef (.29) güncelleniyor.
+[17:24:12] [192.168.55.20] EVENT: Motion triggered
+[17:24:12] [192.168.55.29] AUTO_CMD: relay_1 -> ON
+[17:24:12] [SYS] OTOMASYON BAŞARILI: M2M komutu uygulandı.
+[17:24:23] [192.168.55.29] CMD: relay_1 -> OFF
+[17:24:26] [192.168.55.29] CMD: relay_1 -> ON
+[17:25:58] [SYS] Döngü kullanıcı tarafından durduruldu.
+[17:25:59] [SYS] Sistem kapatılıyor, bağlantılar kesiliyor...
+[17:47:07] [SYS] HomeDash ait sistemler başlatıldı. Cihazlar hazır.
+[17:47:16] [SYS] M2M Otomasyon döngüsü başlatıldı (10 sn aralık).
+[17:47:18] [192.168.55.20] STATUS: Cihaz ağa bağlandı.
+[17:47:18] [192.168.55.29] STATUS: Cihaz ağa bağlandı.
+[17:50:47] [192.168.55.29] CMD: relay_1 -> OFF
+[17:50:49] [192.168.55.29] CMD: relay_1 -> ON
+[17:52:03] [SYS] Döngü kullanıcı tarafından durduruldu.
+[17:52:04] [SYS] Sistem kapatılıyor, bağlantılar kesiliyor...
+[18:09:01] [SYS] HomeDash ait sistemler başlatıldı. Cihazlar hazır.
+[18:09:09] [SYS] M2M Otomasyon döngüsü başlatıldı (10 sn aralık).
+[18:09:11] [192.168.55.20] STATUS: Cihaz ağa bağlandı.
+[18:09:11] [192.168.55.29] STATUS: Cihaz ağa bağlandı.
+[18:09:50] [192.168.55.20] CMD: relay_1 -> OFF
+[18:09:53] [192.168.55.20] CMD: relay_1 -> ON
+[18:09:53] [192.168.55.20] HATA: Komut iletilemedi!
+[18:10:01] [SYS] SİSTEM KURTARMA: 192.168.55.20 relay_1 senkronize ediliyor...
+[18:10:01] [192.168.55.20] RECOVERY: relay_1 -> ON
+[18:10:02] [192.168.55.20] CMD: relay_1 -> ON
+[18:10:11] [SYS] SİSTEM KURTARMA: 192.168.55.20 relay_1 senkronize ediliyor...
+[18:10:11] [192.168.55.20] RECOVERY: relay_1 -> ON
+[18:10:14] [192.168.55.20] CMD: relay_1 -> ON
+[18:10:15] [192.168.55.20] CMD: relay_1 -> ON
+[18:10:17] [192.168.55.20] CMD: relay_1 -> OFF
+[18:10:24] [192.168.55.20] CMD: relay_1 -> ON
+[18:10:26] [192.168.55.20] CMD: relay_1 -> OFF
+[18:10:31] [192.168.55.20] CMD: relay_1 -> ON
+[18:10:31] [SYS] OTOMASYON: 192.168.55.20 tetiklendi! Hedef (.29) güncelleniyor.
+[18:10:31] [192.168.55.20] EVENT: Motion triggered
+[18:10:31] [192.168.55.29] AUTO_CMD: relay_1 -> ON
+[18:10:31] [SYS] OTOMASYON BAŞARILI: M2M komutu uygulandı.
+[18:12:25] [192.168.55.20] CMD: relay_1 -> OFF
+[18:12:34] [SYS] Döngü kullanıcı tarafından durduruldu.
+[18:16:48] [SYS] HomeDash ait sistemler başlatıldı. Cihazlar hazır.
+[18:19:51] [SYS] M2M Otomasyon döngüsü başlatıldı (10 sn aralık).
+[18:19:53] [192.168.55.20] STATUS: Cihaz ağa bağlandı.
+[18:19:53] [192.168.55.29] STATUS: Cihaz ağa bağlandı.
+[18:21:27] [SYS] Döngü kullanıcı tarafından durduruldu.
+[18:23:13] [SYS] Sistem kapatılıyor, bağlantılar kesiliyor...
+[19:05:18] [SYS] HomeDash ait sistemler başlatıldı. Cihazlar hazır.
+[19:06:43] [SYS] M2M Otomasyon döngüsü başlatıldı (10 sn aralık).
+[19:06:45] [192.168.55.20] STATUS: Cihaz ağa bağlandı.
+[19:06:45] [192.168.55.29] STATUS: Cihaz ağa bağlandı.
+[19:06:55] [192.168.55.20] CMD: relay_1 -> ON
+[19:06:58] [192.168.55.20] CMD: relay_1 -> OFF
+[19:07:00] [192.168.55.20] CMD: relay_1 -> ON
+[19:07:00] [192.168.55.20] HATA: Komut iletilemedi!
+[19:07:05] [SYS] SİSTEM KURTARMA: 192.168.55.20 relay_1 senkronize ediliyor...
+[19:07:05] [192.168.55.20] RECOVERY: relay_1 -> ON
+[19:07:06] [192.168.55.20] CMD: relay_1 -> ON
+[19:07:10] [192.168.55.20] CMD: relay_1 -> ON
+[19:07:13] [192.168.55.20] CMD: relay_1 -> OFF
+[19:07:16] [192.168.55.20] CMD: relay_1 -> ON
+[19:07:25] [SYS] OTOMASYON: 192.168.55.20 tetiklendi! Hedef (.29) güncelleniyor.
+[19:07:25] [192.168.55.20] EVENT: Motion triggered
+[19:07:25] [192.168.55.29] AUTO_CMD: relay_1 -> ON
+[19:07:25] [SYS] OTOMASYON BAŞARILI: M2M komutu uygulandı.
+[19:08:23] [SYS] Döngü kullanıcı tarafından durduruldu.
+[19:09:53] [SYS] Sistem kapatılıyor, bağlantılar kesiliyor...
+[19:11:29] [SYS] HomeDash ait sistemler başlatıldı. Cihazlar hazır.
+[19:11:32] [SYS] M2M Otomasyon döngüsü başlatıldı (10 sn aralık).
+[19:11:34] [192.168.55.20] STATUS: Cihaz ağa bağlandı.
+[19:11:34] [192.168.55.29] STATUS: Cihaz ağa bağlandı.
+[19:12:08] [SYS] Döngü kullanıcı tarafından durduruldu.
+[19:12:21] [SYS] M2M Otomasyon döngüsü başlatıldı (10 sn aralık).
+[19:12:31] [192.168.55.20] CMD: relay_1 -> OFF
+[19:12:33] [192.168.55.20] CMD: relay_1 -> ON
+[19:12:43] [SYS] OTOMASYON: 192.168.55.20 tetiklendi! Hedef (.29) güncelleniyor.
+[19:12:43] [192.168.55.20] EVENT: Motion triggered
+[19:12:43] [192.168.55.29] AUTO_CMD: relay_1 -> ON
+[19:12:44] [SYS] OTOMASYON BAŞARILI: M2M komutu uygulandı.
+[19:13:31] [SYS] Döngü kullanıcı tarafından durduruldu.
+[19:13:35] [SYS] Sistem kapatılıyor, bağlantılar kesiliyor...
